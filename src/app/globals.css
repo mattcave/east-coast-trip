@@ -24,3 +24,41 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Remove default padding so the image can fill edge-to-edge */
+.maplibregl-popup-content {
+  padding: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Style the close button as a small dark pill floating over the image */
+.maplibregl-popup-close-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  font-size: 16px;
+  line-height: 26px;
+  text-align: center;
+  padding: 0;
+  z-index: 1;
+}
+
+/* Safari renders a focus ring on the MapLibre popup close button on mount.
+   Remove it — the button is still keyboard-accessible, just unstyled. */
+.maplibregl-popup-close-button:focus,
+.maplibregl-popup-close-button:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.maplibregl-popup-close-button:hover {
+  background: rgba(0, 0, 0, 0.75);
+}

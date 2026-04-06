@@ -1,0 +1,112 @@
+[
+  {
+    "id": "1",
+    "label": "Home",
+    "description": "Uxbridge, Ontario — our starting point.",
+    "lngLat": [
+      -79.12640800827667,
+      44.122814018109835
+    ],
+    "icon": "home",
+    "image": "/uploads/85158e4e-bd53-46aa-998a-7bb428e056c7.webp"
+  },
+  {
+    "id": "2",
+    "label": "Peggy's Cove, NS",
+    "description": "Iconic lighthouse on the rocky Atlantic coast.",
+    "lngLat": [
+      -63.9189,
+      44.4919
+    ],
+    "icon": "landmark",
+    "image": "/uploads/3742a8d2-232f-478b-a308-41de96fd99f9.webp"
+  },
+  {
+    "id": "38d548bd-0a25-4fde-bbfa-04a44fb1c2f0",
+    "label": "Basin Head Provincial Park",
+    "description": "Provincial park located in Basin Head, PEI. It is best known by its nickname \"Singing Sands\", in reference to the pure white sand that \"sings\" when stepped on, due to a high silica content.",
+    "lngLat": [
+      -62.09127014030396,
+      46.387967489634065
+    ],
+    "icon": "beach",
+    "image": "/uploads/7f1a4e02-ffa6-4c7d-bd56-4531cedf65c3.webp"
+  },
+  {
+    "id": "bd14e60c-7964-41d1-9385-02346dc6a08d",
+    "label": "Mount Katahdin",
+    "description": "Mt. Katahdin is located in Maine’s Baxter State Park. It serves as the northern terminus of the Appalachian Trail.",
+    "lngLat": [
+      -68.9213381637088,
+      45.90443200455775
+    ],
+    "icon": "nature",
+    "image": "/uploads/0a4642e3-12b5-4304-9cad-3ce82169665e.webp"
+  },
+  {
+    "id": "4c93fd22-a7e6-4085-b5f8-ab980e7f2ed8",
+    "label": "Meat Cove Campground",
+    "description": "Meat Cove Campground is a bit remote but looks like a nice place to hang out.",
+    "lngLat": [
+      -60.55894785428964,
+      47.02615663051276
+    ],
+    "icon": "tent",
+    "image": "/uploads/c9dbbce9-fce5-4a82-8ea7-e39d4dceb60f.webp"
+  },
+  {
+    "id": "62379b14-2410-420c-aa06-322fc0bde5b4",
+    "label": "Wesley Clover Parks Campground",
+    "description": "Overnight stop on the way east",
+    "lngLat": [
+      -75.86686707825639,
+      45.331677194311396
+    ],
+    "icon": "tent",
+    "image": ""
+  },
+  {
+    "id": "ac822676-9f87-455c-91fb-4e6c15dee6cb",
+    "label": "Tadoussac, QC",
+    "description": "Whale-watching spot",
+    "lngLat": [
+      -69.71671778457994,
+      48.137070213499214
+    ],
+    "icon": "nature",
+    "image": ""
+  },
+  {
+    "id": "1bebbaaf-1064-4431-b163-7717d92d49b7",
+    "label": "King Neptune Campground. NS",
+    "description": "King Neptune Campground. NS",
+    "lngLat": [
+      -63.93593702013118,
+      44.51641390155322
+    ],
+    "icon": "tent",
+    "image": ""
+  },
+  {
+    "id": "9beb4d4a-77eb-4d56-9cfd-cb900380279c",
+    "label": "Point Wolfe Campground",
+    "description": "Point Wolfe Campground at Fundy National Park",
+    "lngLat": [
+      -65.01647953036571,
+      45.552862795448675
+    ],
+    "icon": "tent",
+    "image": ""
+  },
+  {
+    "id": "b84f1684-1e43-4008-ad34-f998b679aa8f",
+    "label": "Bike Wentworth",
+    "description": "Downhill mountain bike park",
+    "lngLat": [
+      -63.56128178053858,
+      45.60934071664528
+    ],
+    "icon": "default",
+    "image": ""
+  }
+]

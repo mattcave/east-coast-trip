@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# East Coast Trip
 
-## Getting Started
+An interactive road trip map for our summer drive from Ontario to Nova Scotia. Locations are displayed as map pins with photos, descriptions, and icons. An authenticated admin panel allows pins to be added, edited, and removed directly on the map.
 
-First, run the development server:
+## Stack
+
+- **[Next.js 16](https://nextjs.org)** — App Router, server components, API route handlers
+- **[MapLibre GL JS](https://maplibre.org)** — client-side interactive map
+- **[Stadia Maps](https://stadiamaps.com)** — Outdoors tile style + geocoding API
+- **[Sharp](https://sharp.pixelplumbing.com)** — server-side image resizing and WebP conversion
+- **[Tailwind CSS v4](https://tailwindcss.com)** — styling
+- **[Lucide React](https://lucide.dev)** — pin icons
+- Data stored in `data/pins.json` — no database required
+
+## Features
+
+- Interactive map with coloured, categorised pins
+- Photo popups with name, description, and icon
+- Authenticated admin panel (single shared password)
+- Add pins by searching for a place or clicking the map
+- Image upload with automatic crop and resize (1200×800 WebP)
+- API key kept server-side — never exposed to the client
+
+## Development
+
+### Prerequisites
+
+- Node.js 22+
+- A [Stadia Maps](https://stadiamaps.com) API key (free tier is sufficient)
+
+### Setup
+
+```bash
+npm install
+```
+
+Create `.env.local` in the project root:
+
+```env
+STADIA_API_KEY=your_stadia_api_key
+ADMIN_PASSWORD=your_admin_password
+SESSION_SECRET=a_long_random_string
+```
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+### Tests
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm test
+```
 
-## Learn More
+## Deployment
 
-To learn more about Next.js, take a look at the following resources:
+### Docker Compose
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Create a `.env` file in the project root with the same variables as above, then:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+docker compose up -d --build
+```
 
-## Deploy on Vercel
+Pin data is persisted in `./data/pins.json` and uploaded images in `./public/uploads/`, both bind-mounted from the host so they survive container rebuilds.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Building from a Git remote
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Once a remote is configured, replace the local build context in `docker-compose.yml`:
+
+```yaml
+build:
+  context: https://github.com/mattcave/east-coast-trip.git
+  dockerfile: Dockerfile
+```
+
+Then `docker compose up -d --build` pulls and builds directly from the repo — no local checkout required.

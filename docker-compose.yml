@@ -1,0 +1,16 @@
+services:
+  app:
+    build:
+      context: https://github.com/mattcave/east-coast-trip.git
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - STADIA_API_KEY=${STADIA_API_KEY}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - SESSION_SECRET=${SESSION_SECRET}
+    volumes:
+      # Persist pin data and uploaded images outside the container
+      - ./data:/app/data
+      - ./public/uploads:/app/public/uploads
+    restart: unless-stopped
