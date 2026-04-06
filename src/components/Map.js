@@ -62,7 +62,7 @@ function buildPopupElement({ label, description, image }, onEdit) {
   if (onEdit) {
     const editBtn = document.createElement("button");
     editBtn.textContent = "Edit";
-    editBtn.style.cssText = "display:block; margin-top:8px; font-size:12px; font-weight:500; color:#2563eb; background:none; border:none; padding:0; cursor:pointer;";
+    editBtn.style.cssText = "display:block; margin-top:8px; font-size:12px; font-weight:500; color:#2563eb; background:none; border:none; padding:0; cursor:pointer; outline:none;";
     editBtn.addEventListener("click", onEdit);
     body.appendChild(editBtn);
   }

@@ -7,8 +7,15 @@ function getPinsFile() {
 }
 
 export async function readPins() {
-  const data = await readFile(getPinsFile(), "utf-8");
-  return JSON.parse(data);
+  try {
+    const data = await readFile(getPinsFile(), "utf-8");
+    // Guard against an empty file (e.g. a freshly bind-mounted volume)
+    return JSON.parse(data.trim() || "[]");
+  } catch (err) {
+    // File missing on first deploy — start with an empty list
+    if (err.code === "ENOENT") return [];
+    throw err;
+  }
 }
 
 export async function writePins(pins) {

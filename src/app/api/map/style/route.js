@@ -7,9 +7,13 @@ export async function GET(request) {
 
   const style = await res.json();
 
-  // Rewrite all Stadia URLs in the style to go through our tile proxy so the
-  // API key is never sent to the client — it's added server-side in /api/map/[...path].
-  const origin = request.nextUrl.origin;
+  // Build the public-facing origin from the Host header rather than
+  // request.nextUrl.origin, which resolves to the bind address (0.0.0.0)
+  // in Docker and breaks client-side tile and sprite requests.
+  const host = request.headers.get("host") ?? "localhost:3000";
+  const proto = request.headers.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  const origin = `${proto}://${host}`;
+
   const json = JSON.stringify(style)
     .replaceAll("https://tiles.stadiamaps.com/", `${origin}/api/map/proxy/`)
     .replace(/[?&]api_key=[^"& ]*/g, "");
@@ -17,7 +21,9 @@ export async function GET(request) {
   return new Response(json, {
     headers: {
       "content-type": "application/json",
-      "cache-control": "public, max-age=3600",
+      // No browser cache — the origin URL is request-dependent, and the
+      // server-side fetch cache already avoids round-trips to Stadia.
+      "cache-control": "no-store",
     },
   });
 }

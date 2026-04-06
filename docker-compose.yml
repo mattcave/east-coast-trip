@@ -13,4 +13,5 @@ services:
       # Persist pin data and uploaded images outside the container
       - ./data:/app/data
       - ./public/uploads:/app/public/uploads
+    container_name: east-coast-trip
     restart: unless-stopped

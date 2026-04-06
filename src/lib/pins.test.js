@@ -30,6 +30,16 @@ describe("readPins", () => {
     await writeFile(TEMP_FILE, "[]");
     expect(await readPins()).toEqual([]);
   });
+
+  it("returns an empty array when the file does not exist", async () => {
+    // No file written — simulates a freshly bind-mounted Docker volume
+    expect(await readPins()).toEqual([]);
+  });
+
+  it("returns an empty array when the file is empty", async () => {
+    await writeFile(TEMP_FILE, "");
+    expect(await readPins()).toEqual([]);
+  });
 });
 
 describe("writePins", () => {

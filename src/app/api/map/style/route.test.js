@@ -13,8 +13,8 @@ const SAMPLE_STYLE = {
   },
 };
 
-function makeRequest(origin = "http://localhost") {
-  return new NextRequest(`${origin}/api/map/style`);
+function makeRequest() {
+  return new NextRequest("http://localhost/api/map/style");
 }
 
 beforeEach(() => {
@@ -34,6 +34,7 @@ describe("GET /api/map/style", () => {
     });
     await GET(makeRequest());
     const [calledUrl] = spy.mock.calls[0];
+
     expect(calledUrl).toContain("tiles.stadiamaps.com/styles/outdoors.json");
     expect(calledUrl).toContain("api_key=test-key");
   });
@@ -43,9 +44,9 @@ describe("GET /api/map/style", () => {
       ok: true,
       json: async () => SAMPLE_STYLE,
     });
-    const res = await GET(makeRequest("http://localhost"));
+    const res = await GET(makeRequest());
     const body = await res.json();
-    expect(JSON.stringify(body)).toContain("http://localhost/api/map/proxy/");
+    expect(JSON.stringify(body)).toContain("http://localhost:3000/api/map/proxy/");
     expect(JSON.stringify(body)).not.toContain("tiles.stadiamaps.com");
   });
 
@@ -72,6 +73,6 @@ describe("GET /api/map/style", () => {
     });
     const res = await GET(makeRequest());
     expect(res.headers.get("content-type")).toBe("application/json");
-    expect(res.headers.get("cache-control")).toContain("max-age=3600");
+    expect(res.headers.get("cache-control")).toBe("no-store");
   });
 });
