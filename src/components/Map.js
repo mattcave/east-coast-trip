@@ -71,7 +71,7 @@ function buildPopupElement({ label, description, image }, onEdit) {
   return wrap;
 }
 
-export default function Map({ pins = [], placementMode = false, onLocationPick, onEditPin }) {
+export default function Map({ pins = [], placementMode = false, onLocationPick, onEditPin, isAuthenticated = false }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);      // MapLibre Marker instances
@@ -151,7 +151,7 @@ export default function Map({ pins = [], placementMode = false, onLocationPick, 
         root.render(<MarkerPin icon={icon} />);
         markerRootsRef.current.push(root);
 
-        const onEdit = onEditPinRef.current
+        const onEdit = (isAuthenticated && onEditPinRef.current)
           ? () => onEditPinRef.current(id)
           : null;
 

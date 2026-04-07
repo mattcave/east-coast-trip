@@ -59,6 +59,7 @@ export default function TripMap({ initialPins, isAuthenticated }) {
         placementMode={placementMode}
         onLocationPick={handleLocationPick}
         onEditPin={(id) => { setEditTargetId(id); setModalOpen(true); }}
+        isAuthenticated={isAuthenticated}
       />
 
       {/* Floating search box shown during placement mode */}
