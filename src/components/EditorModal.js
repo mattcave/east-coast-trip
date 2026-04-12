@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { X, Plus, Pencil, Trash2, MapPin, LogOut } from "lucide-react";
 import { PIN_ICONS } from "@/lib/icons";
@@ -11,6 +11,7 @@ const EMPTY_FORM = {
   icon: "default",
   image: "",
   lngLat: null,
+  wikipedia: null, // null = auto-detect, "none" = disabled, URL string = specific article
 };
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -39,7 +40,94 @@ function IconPicker({ value, onChange }) {
   );
 }
 
-function PinForm({ initial, onSave, onCancel, onPickLocation }) {
+function LocationSearch({ onSelect }) {
+  const [q, setQ] = useState("");
+  const [placeResults, setPlaceResults] = useState([]);
+  const [wikiResults, setWikiResults] = useState([]);
+  const [open, setOpen] = useState(false);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    const query = q.trim();
+    if (!query) {
+      setPlaceResults([]);
+      setWikiResults([]);
+      setOpen(false);
+      return;
+    }
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      fetch(`/api/geocode?q=${encodeURIComponent(query)}`)
+        .then((r) => (r.ok ? r.json() : []))
+        .then((data) => { setPlaceResults(data); setOpen(true); })
+        .catch(() => {});
+      fetch(`/api/wikipedia/search?q=${encodeURIComponent(query)}`)
+        .then((r) => (r.ok ? r.json() : []))
+        .then((data) => { setWikiResults(data); setOpen(true); })
+        .catch(() => {});
+    }, 300);
+    return () => clearTimeout(timerRef.current);
+  }, [q]);
+
+  const select = (lngLat, prefill = {}) => {
+    setQ("");
+    setPlaceResults([]);
+    setWikiResults([]);
+    setOpen(false);
+    onSelect(lngLat, prefill);
+  };
+
+  const hasResults = placeResults.length > 0 || wikiResults.length > 0;
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Search places or Wikipedia…"
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+      {open && hasResults && (
+        <div className="absolute z-50 left-0 right-0 bg-white rounded-lg shadow-lg border border-gray-200 mt-1 max-h-64 overflow-y-auto">
+          {placeResults.length > 0 && (
+            <>
+              <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-gray-400 tracking-wider">PLACES</div>
+              {placeResults.map((r) => (
+                <button
+                  key={r.properties.id}
+                  type="button"
+                  onClick={() => select({ lng: r.geometry.coordinates[0], lat: r.geometry.coordinates[1] })}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-800 hover:bg-gray-50"
+                >
+                  {r.properties.label}
+                </button>
+              ))}
+            </>
+          )}
+          {wikiResults.length > 0 && (
+            <>
+              <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-gray-400 tracking-wider">WIKIPEDIA</div>
+              {wikiResults.map((r) => (
+                <button
+                  key={r.url}
+                  type="button"
+                  onClick={() => select({ lng: r.lng, lat: r.lat }, { label: r.title, wikipedia: r.url })}
+                  className="w-full text-left px-3 py-2 hover:bg-gray-50"
+                >
+                  <div className="text-sm font-medium text-gray-800">{r.title}</div>
+                  {r.extract && <div className="text-xs text-gray-500 truncate">{r.extract}</div>}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PinForm({ initial, onSave, onCancel, onPickLocation, onFlyTo }) {
   const [form, setForm] = useState(initial ?? EMPTY_FORM);
   // pendingFile holds the File selected by the user but not yet uploaded.
   // A local object URL is generated for preview without a server round-trip.
@@ -112,6 +200,44 @@ function PinForm({ initial, onSave, onCancel, onPickLocation }) {
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
       <div>
+        <label className="block text-xs font-medium text-gray-600 mb-1">Location</label>
+        <LocationSearch
+          onSelect={(lngLat, prefill = {}) => {
+            set("lngLat", lngLat);
+            // Only prefill label if the field is currently empty (don't clobber edits)
+            if (prefill.label && !form.label) set("label", prefill.label);
+            if (prefill.wikipedia !== undefined) set("wikipedia", prefill.wikipedia);
+            onFlyTo?.(lngLat);
+          }}
+        />
+        <div className="flex items-center gap-2 mt-2">
+          <span className="text-sm text-gray-500 flex-1">
+            {form.lngLat
+              ? (() => {
+                  // lngLat may be a MapLibre LngLat object {lat,lng} (from map click)
+                  // or a plain array [lng, lat] (from pins.json storage)
+                  const lat = form.lngLat.lat ?? form.lngLat[1];
+                  const lng = form.lngLat.lng ?? form.lngLat[0];
+                  return `${lat.toFixed(4)}°N, ${lng.toFixed(4)}°W`;
+                })()
+              : "Not set"}
+          </span>
+          <button
+            type="button"
+            onClick={() => onPickLocation((lngLat, prefill = {}) => {
+              set("lngLat", lngLat);
+              if (prefill.label && !form.label) set("label", prefill.label);
+              if (prefill.wikipedia !== undefined) set("wikipedia", prefill.wikipedia);
+            }, initial?.id)}
+            className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 rounded-lg px-3 py-1.5 transition-colors"
+          >
+            <MapPin size={14} />
+            Pick on map
+          </button>
+        </div>
+      </div>
+
+      <div>
         <label className="block text-xs font-medium text-gray-600 mb-1">Name *</label>
         <input
           required
@@ -154,28 +280,49 @@ function PinForm({ initial, onSave, onCancel, onPickLocation }) {
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">Location</label>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500 flex-1">
-            {form.lngLat
-              ? (() => {
-                  // lngLat may be a MapLibre LngLat object {lat,lng} (from map click)
-                  // or a plain array [lng, lat] (from pins.json storage)
-                  const lat = form.lngLat.lat ?? form.lngLat[1];
-                  const lng = form.lngLat.lng ?? form.lngLat[0];
-                  return `${lat.toFixed(4)}°N, ${lng.toFixed(4)}°W`;
-                })()
-              : "Not set"}
-          </span>
-          <button
-            type="button"
-            onClick={() => onPickLocation((lngLat) => set("lngLat", lngLat), initial?.id)}
-            className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 rounded-lg px-3 py-1.5 transition-colors"
-          >
-            <MapPin size={14} />
-            Pick on map
-          </button>
+        <label className="block text-xs font-medium text-gray-600 mb-1.5">Wikipedia</label>
+        <div className="flex gap-1 mb-2">
+          {[
+            { key: "auto",   label: "Auto" },
+            { key: "none",   label: "None" },
+            { key: "custom", label: "Custom" },
+          ].map(({ key, label }) => {
+            const current = form.wikipedia === null ? "auto"
+              : form.wikipedia === "none" ? "none"
+              : "custom";
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => set("wikipedia",
+                  key === "auto" ? null : key === "none" ? "none" : ""
+                )}
+                className={`flex-1 py-1.5 text-xs rounded-lg border transition-colors ${
+                  current === key
+                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                    : "border-gray-200 text-gray-600 hover:border-gray-300"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
+        {form.wikipedia !== null && form.wikipedia !== "none" && (
+          <input
+            type="url"
+            value={form.wikipedia}
+            onChange={(e) => set("wikipedia", e.target.value)}
+            placeholder="https://en.wikipedia.org/wiki/…"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        )}
+        {form.wikipedia === null && (
+          <p className="text-xs text-gray-400">Nearest article will be found automatically.</p>
+        )}
+        {form.wikipedia === "none" && (
+          <p className="text-xs text-gray-400">No Wikipedia link will be shown.</p>
+        )}
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -239,7 +386,7 @@ export default function EditorModal({ pins, onClose, onStartPlacement, onRefresh
   };
 
   return (
-    <div className="absolute top-0 right-0 h-full w-80 bg-white shadow-2xl flex flex-col z-10">
+    <div className="absolute top-0 right-0 h-full w-full sm:w-80 bg-white shadow-2xl flex flex-col z-10">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <div className="flex items-center gap-2">
@@ -329,6 +476,7 @@ export default function EditorModal({ pins, onClose, onStartPlacement, onRefresh
             onSave={handleSave}
             onCancel={backToList}
             onPickLocation={onStartPlacement}
+            onFlyTo={onFlyTo}
           />
         )}
       </div>

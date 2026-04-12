@@ -1,6 +1,7 @@
 import {
   Home, Camera, Tent,
   Utensils, TreePine, Waves, Landmark, MapPin,
+  Mountain, Zap, Bird, Star,
 } from "lucide-react";
 
 // Available pin icons. Add entries here to expand the set.
@@ -13,5 +14,9 @@ export const PIN_ICONS = {
   food:     { icon: Utensils,  label: "Food",     color: "#dc2626" }, // red
   nature:   { icon: TreePine,  label: "Nature",   color: "#16a34a" }, // green
   beach:    { icon: Waves,     label: "Beach",    color: "#0284c7" }, // sky blue
-  default:  { icon: MapPin,    label: "Pin",      color: "#2563eb" }, // blue
+  mountain:   { icon: Mountain, label: "Mountain",   color: "#64748b" }, // slate
+  activity:   { icon: Zap,     label: "Activity",   color: "#f59e0b" }, // yellow
+  wildlife:   { icon: Bird,    label: "Wildlife",   color: "#65a30d" }, // lime
+  attraction: { icon: Star,    label: "Attraction", color: "#e11d48" }, // rose — roadside oddities, giant lobsters, etc.
+  default:    { icon: MapPin,  label: "Pin",        color: "#2563eb" }, // blue
 };

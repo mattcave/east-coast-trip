@@ -5,12 +5,14 @@ import { Pencil } from "lucide-react";
 import Map from "./Map";
 import GeoSearch from "./GeoSearch";
 import EditorModal from "./EditorModal";
+import PinPopup from "./PinPopup";
 
 export default function TripMap({ initialPins, isAuthenticated }) {
   const [pins, setPins] = useState(initialPins);
   const [modalOpen, setModalOpen] = useState(false);
   const [placementMode, setPlacementMode] = useState(false);
   const [editTargetId, setEditTargetId] = useState(null);
+  const [selectedPin, setSelectedPin] = useState(null);
 
   // Stored callback from the form's "Pick on map" button.
   // Called with the picked lngLat when the user clicks the map.
@@ -27,10 +29,12 @@ export default function TripMap({ initialPins, isAuthenticated }) {
     pickingPinIdRef.current = pinId;
     setPlacementMode(true);
     setModalOpen(false);
+    setSelectedPin(null);
   };
 
-  const handleLocationPick = (lngLat) => {
-    onPickCallbackRef.current?.(lngLat);
+  // prefill is optional extra fields (label, wikipedia) from a Wikipedia search selection
+  const handleLocationPick = (lngLat, prefill = {}) => {
+    onPickCallbackRef.current?.(lngLat, prefill);
     onPickCallbackRef.current = null;
 
     // Optimistically reposition the pin on the map before the form is saved,
@@ -58,8 +62,7 @@ export default function TripMap({ initialPins, isAuthenticated }) {
         pins={pins}
         placementMode={placementMode}
         onLocationPick={handleLocationPick}
-        onEditPin={(id) => { setEditTargetId(id); setModalOpen(true); }}
-        isAuthenticated={isAuthenticated}
+        onPinClick={(pin) => setSelectedPin(pin)}
       />
 
       {/* Floating search box shown during placement mode */}
@@ -67,6 +70,7 @@ export default function TripMap({ initialPins, isAuthenticated }) {
         <GeoSearch
           mapRef={Map.mapRef}
           onCancel={cancelPlacement}
+          onAutoPlace={handleLocationPick}
         />
       )}
 
@@ -95,6 +99,19 @@ export default function TripMap({ initialPins, isAuthenticated }) {
             onEditTargetConsumed={() => setEditTargetId(null)}
           />
         </div>
+      )}
+
+      {/* Pin detail popup — bottom sheet on mobile, card on desktop */}
+      {selectedPin && (
+        <PinPopup
+          pin={selectedPin}
+          onClose={() => setSelectedPin(null)}
+          onEdit={isAuthenticated ? (id) => {
+            setSelectedPin(null);
+            setEditTargetId(id);
+            setModalOpen(true);
+          } : null}
+        />
       )}
     </div>
   );

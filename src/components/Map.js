@@ -30,57 +30,17 @@ function MarkerPin({ icon }) {
   );
 }
 
-// Builds the popup DOM element using DOM APIs rather than innerHTML to avoid XSS,
-// and so we can attach a real event listener to the Edit button.
-function buildPopupElement({ label, description, image }, onEdit) {
-  const wrap = document.createElement("div");
-  wrap.style.cssText = "width:280px; font-family:sans-serif;";
-
-  if (image) {
-    const img = document.createElement("img");
-    img.src = image;
-    img.alt = label;
-    img.style.cssText = "width:100%; height:180px; object-fit:cover; display:block;";
-    wrap.appendChild(img);
-  }
-
-  const body = document.createElement("div");
-  body.style.cssText = "padding:12px 14px 10px;";
-
-  const title = document.createElement("strong");
-  title.style.fontSize = "15px";
-  title.textContent = label;
-  body.appendChild(title);
-
-  if (description) {
-    const desc = document.createElement("p");
-    desc.style.cssText = "margin:5px 0 0; font-size:13px; color:#555; line-height:1.4;";
-    desc.textContent = description;
-    body.appendChild(desc);
-  }
-
-  if (onEdit) {
-    const editBtn = document.createElement("button");
-    editBtn.textContent = "Edit";
-    editBtn.style.cssText = "display:block; margin-top:8px; font-size:12px; font-weight:500; color:#2563eb; background:none; border:none; padding:0; cursor:pointer; outline:none;";
-    editBtn.addEventListener("click", onEdit);
-    body.appendChild(editBtn);
-  }
-
-  wrap.appendChild(body);
-  return wrap;
-}
-
-export default function Map({ pins = [], placementMode = false, onLocationPick, onEditPin, isAuthenticated = false }) {
+export default function Map({ pins = [], placementMode = false, onLocationPick, onPinClick }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);      // MapLibre Marker instances
   const markerRootsRef = useRef([]);  // React roots rendered into each marker element
   const previewMarkerRef = useRef(null);
-  // Ref so popup Edit buttons always call the latest callback without needing
-  // to re-create markers every time the parent re-renders.
-  const onEditPinRef = useRef(onEditPin);
-  useEffect(() => { onEditPinRef.current = onEditPin; });
+  // Refs so marker clicks always call the latest callbacks without re-creating markers
+  const onPinClickRef = useRef(onPinClick);
+  useEffect(() => { onPinClickRef.current = onPinClick; });
+  const placementModeRef = useRef(placementMode);
+  useEffect(() => { placementModeRef.current = placementMode; });
 
   // Expose mapRef so parent components can call flyTo etc.
   Map.mapRef = mapRef;
@@ -151,16 +111,16 @@ export default function Map({ pins = [], placementMode = false, onLocationPick, 
         root.render(<MarkerPin icon={icon} />);
         markerRootsRef.current.push(root);
 
-        const onEdit = (isAuthenticated && onEditPinRef.current)
-          ? () => onEditPinRef.current(id)
-          : null;
+        el.dataset.pinId = id;
+        el.addEventListener("click", () => {
+          // Ignore marker clicks during placement mode — user is picking a location
+          if (!placementModeRef.current) {
+            onPinClickRef.current?.({ id, lngLat, label, description, image, icon });
+          }
+        });
 
         const marker = new maplibregl.Marker({ element: el })
           .setLngLat(lngLat)
-          .setPopup(
-            new maplibregl.Popup({ offset: 20, maxWidth: "none" })
-              .setDOMContent(buildPopupElement({ label, description, image }, onEdit))
-          )
           .addTo(map);
         markersRef.current.push(marker);
       });
