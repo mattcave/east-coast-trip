@@ -90,6 +90,23 @@ function LocationSearch({ onSelect }) {
       />
       {open && hasResults && (
         <div className="absolute z-50 left-0 right-0 bg-white rounded-lg shadow-lg border border-gray-200 mt-1 max-h-64 overflow-y-auto">
+          {wikiResults.length > 0 && (
+            <>
+              <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-gray-400 tracking-wider">WIKIPEDIA</div>
+              {wikiResults.map((r) => (
+                <button
+                  key={r.url}
+                  type="button"
+                  // Pass lngLat only when the article has coordinates; otherwise just prefill the URL
+                  onClick={() => select(r.lat !== null ? { lng: r.lng, lat: r.lat } : null, { label: r.title, wikipedia: r.url })}
+                  className="w-full text-left px-3 py-2 hover:bg-gray-50"
+                >
+                  <div className="text-sm font-medium text-gray-800">{r.title}</div>
+                  {r.extract && <div className="text-xs text-gray-500 truncate">{r.extract}</div>}
+                </button>
+              ))}
+            </>
+          )}
           {placeResults.length > 0 && (
             <>
               <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-gray-400 tracking-wider">PLACES</div>
@@ -101,22 +118,6 @@ function LocationSearch({ onSelect }) {
                   className="w-full text-left px-3 py-2 text-sm text-gray-800 hover:bg-gray-50"
                 >
                   {r.properties.label}
-                </button>
-              ))}
-            </>
-          )}
-          {wikiResults.length > 0 && (
-            <>
-              <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-gray-400 tracking-wider">WIKIPEDIA</div>
-              {wikiResults.map((r) => (
-                <button
-                  key={r.url}
-                  type="button"
-                  onClick={() => select({ lng: r.lng, lat: r.lat }, { label: r.title, wikipedia: r.url })}
-                  className="w-full text-left px-3 py-2 hover:bg-gray-50"
-                >
-                  <div className="text-sm font-medium text-gray-800">{r.title}</div>
-                  {r.extract && <div className="text-xs text-gray-500 truncate">{r.extract}</div>}
                 </button>
               ))}
             </>
@@ -214,11 +215,11 @@ function PinForm({ initial, onSave, onCancel, onPickLocation, onFlyTo }) {
         <label className="block text-xs font-medium text-gray-600 mb-1">Location</label>
         <LocationSearch
           onSelect={(lngLat, prefill = {}) => {
-            set("lngLat", lngLat);
+            // lngLat may be null for Wikipedia articles without coordinates
+            if (lngLat) { set("lngLat", lngLat); onFlyTo?.(lngLat); }
             // Only prefill label if the field is currently empty (don't clobber edits)
             if (prefill.label && !form.label) set("label", prefill.label);
             if (prefill.wikipedia !== undefined) set("wikipedia", prefill.wikipedia);
-            onFlyTo?.(lngLat);
           }}
         />
         <div className="flex items-center gap-2 mt-2">

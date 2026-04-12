@@ -56,7 +56,9 @@ export default function GeoSearch({ mapRef, onCancel, onAutoPlace }) {
     });
   };
 
-  const hasResults = placeResults.length > 0 || wikiResults.length > 0;
+  // GeoSearch requires coordinates to auto-place a pin — skip articles without them
+  const geoWikiResults = wikiResults.filter((r) => r.lat !== null && r.lng !== null);
+  const hasResults = placeResults.length > 0 || geoWikiResults.length > 0;
 
   return (
     <div className="absolute top-4 left-12 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-96 z-20">
@@ -83,6 +85,24 @@ export default function GeoSearch({ mapRef, onCancel, onAutoPlace }) {
 
         {!searchError && hasResults && (
           <div className="absolute top-full mt-1 w-full z-30 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+            {geoWikiResults.length > 0 && (
+              <>
+                <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50 border-b border-gray-100">
+                  Wikipedia
+                </div>
+                {geoWikiResults.map((r) => (
+                  <button
+                    key={r.url}
+                    onClick={() => selectWiki(r)}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 border-b border-gray-100 last:border-0 transition-colors"
+                  >
+                    <div className="text-sm font-medium text-gray-800">{r.title}</div>
+                    <div className="text-xs text-gray-500 mt-0.5 truncate">{r.extract}</div>
+                  </button>
+                ))}
+              </>
+            )}
+
             {placeResults.length > 0 && (
               <>
                 <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50 border-b border-gray-100">
@@ -95,24 +115,6 @@ export default function GeoSearch({ mapRef, onCancel, onAutoPlace }) {
                     className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm text-gray-800 border-b border-gray-100 last:border-0 transition-colors"
                   >
                     {f.properties.label}
-                  </button>
-                ))}
-              </>
-            )}
-
-            {wikiResults.length > 0 && (
-              <>
-                <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-50 border-b border-gray-100">
-                  Wikipedia
-                </div>
-                {wikiResults.map((r) => (
-                  <button
-                    key={r.url}
-                    onClick={() => selectWiki(r)}
-                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 border-b border-gray-100 last:border-0 transition-colors"
-                  >
-                    <div className="text-sm font-medium text-gray-800">{r.title}</div>
-                    <div className="text-xs text-gray-500 mt-0.5 truncate">{r.extract}</div>
                   </button>
                 ))}
               </>
