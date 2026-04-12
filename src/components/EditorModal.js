@@ -378,6 +378,7 @@ function PinForm({ initial, onSave, onCancel, onPickLocation, onFlyTo }) {
 export default function EditorModal({ pins, onClose, onStartPlacement, onRefresh, onFlyTo, editTargetId, onEditTargetConsumed }) {
   const [view, setView] = useState("list"); // 'list' | 'form'
   const [editingPin, setEditingPin] = useState(null);
+  const scrollRef = useRef(null);
 
   // When a popup Edit button sets an editTargetId, jump straight to that pin's form
   useEffect(() => {
@@ -390,9 +391,11 @@ export default function EditorModal({ pins, onClose, onStartPlacement, onRefresh
   const [deleting, setDeleting] = useState(false);
   const router = useRouter();
 
-  const openAdd = () => { setEditingPin(null); setView("form"); };
-  const openEdit = (pin) => { setEditingPin(pin); setView("form"); onFlyTo?.(pin.lngLat); };
-  const backToList = () => { setEditingPin(null); setView("list"); };
+  const scrollToTop = () => { if (scrollRef.current) scrollRef.current.scrollTop = 0; };
+
+  const openAdd = () => { setEditingPin(null); setView("form"); scrollToTop(); };
+  const openEdit = (pin) => { setEditingPin(pin); setView("form"); scrollToTop(); onFlyTo?.(pin.lngLat); };
+  const backToList = () => { setEditingPin(null); setView("list"); scrollToTop(); };
 
   const handleSave = async () => {
     await onRefresh();
@@ -438,7 +441,7 @@ export default function EditorModal({ pins, onClose, onStartPlacement, onRefresh
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
         {view === "list" && (
           <>
             <button
