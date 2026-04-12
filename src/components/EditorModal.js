@@ -87,6 +87,7 @@ function LocationSearch({ onSelect }) {
         onChange={(e) => setQ(e.target.value)}
         placeholder="Search places or Wikipedia…"
         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
       />
       {open && hasResults && (
         <div className="absolute z-50 left-0 right-0 bg-white rounded-lg shadow-lg border border-gray-200 mt-1 max-h-64 overflow-y-auto">
