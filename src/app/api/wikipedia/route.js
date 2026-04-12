@@ -12,6 +12,7 @@ async function fetchSummary(title) {
     title: data.title,
     extract: data.extract,
     url: data.content_urls.desktop.page,
+    thumbnail: data.thumbnail?.source ?? null,
   };
 }
 

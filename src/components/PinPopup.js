@@ -36,8 +36,9 @@ function WikiSection({ pin }) {
     <div className="mt-3 pt-3 border-t border-gray-100">
       {loading && (
         <div className="space-y-2">
-          <div className="h-3 bg-gray-100 rounded animate-pulse w-full" />
-          <div className="h-3 bg-gray-100 rounded animate-pulse w-4/5" />
+          <div className="h-3 bg-gray-200 rounded animate-pulse w-full" />
+          <div className="h-3 bg-gray-200 rounded animate-pulse w-4/5" />
+          <div className="h-3 bg-gray-200 rounded animate-pulse w-3/5" />
         </div>
       )}
       {!loading && wiki && (

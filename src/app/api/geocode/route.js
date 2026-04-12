@@ -6,8 +6,10 @@ export async function GET(request) {
   const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encoded}.json`);
   url.searchParams.set("access_token", process.env.MAPBOX_TOKEN);
   url.searchParams.set("autocomplete", "true");
-  // Limit to Canada and US for east coast trip relevance
-  url.searchParams.set("country", "ca,us");
+  // Bounding box: NE US + Maritime Canada + Quebec corridor
+  // SW corner: ~Boston/NY latitude, ~Lake Ontario longitude
+  // NE corner: ~northern NB/NS, ~Cape Breton
+  url.searchParams.set("bbox", "-80,40,-52,52");
   url.searchParams.set("limit", "6");
 
   try {

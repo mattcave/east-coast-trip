@@ -136,8 +136,19 @@ function PinForm({ initial, onSave, onCancel, onPickLocation, onFlyTo }) {
   const [previewUrl, setPreviewUrl] = useState(initial?.image ?? null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [wikiThumb, setWikiThumb] = useState(null);
 
   const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
+
+  // When a Wikipedia URL is set, fetch its thumbnail to offer as a quick image option
+  useEffect(() => {
+    const url = form.wikipedia;
+    if (!url || url === "none") { setWikiThumb(null); return; }
+    fetch(`/api/wikipedia?url=${encodeURIComponent(url)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setWikiThumb(data?.thumbnail ?? null))
+      .catch(() => {});
+  }, [form.wikipedia]);
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -273,9 +284,26 @@ function PinForm({ initial, onSave, onCancel, onPickLocation, onFlyTo }) {
             className="w-full h-36 object-cover rounded-lg mb-2"
           />
         )}
+        {/* Wikipedia thumbnail suggestion — shown when a Wikipedia article is linked and no image is set yet */}
+        {wikiThumb && !previewUrl && (
+          <div className="mb-2">
+            <img src={wikiThumb} alt="Wikipedia" className="w-full h-36 object-cover rounded-lg mb-1.5 opacity-60" />
+            <button
+              type="button"
+              onClick={() => {
+                set("image", wikiThumb);
+                setPreviewUrl(wikiThumb);
+                setPendingFile(null);
+              }}
+              className="w-full text-center text-xs font-medium text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 rounded-lg py-1.5 transition-colors"
+            >
+              Use Wikipedia photo
+            </button>
+          </div>
+        )}
         <label className="flex items-center justify-center gap-2 w-full border border-dashed border-gray-300 hover:border-blue-400 text-gray-500 hover:text-blue-600 rounded-lg py-2 text-sm cursor-pointer transition-colors">
           <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleFileChange} />
-          {previewUrl ? "Replace image" : "Choose image"}
+          {previewUrl ? "Replace image" : "Upload your own"}
         </label>
       </div>
 
