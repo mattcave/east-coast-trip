@@ -8,7 +8,8 @@
       44.122814018109835
     ],
     "icon": "home",
-    "image": "/uploads/85158e4e-bd53-46aa-998a-7bb428e056c7.webp"
+    "image": "/uploads/85158e4e-bd53-46aa-998a-7bb428e056c7.webp",
+    "wikipedia": "none"
   },
   {
     "id": "2",
@@ -19,18 +20,20 @@
       44.4919
     ],
     "icon": "landmark",
-    "image": "/uploads/3742a8d2-232f-478b-a308-41de96fd99f9.webp"
+    "image": "/uploads/3742a8d2-232f-478b-a308-41de96fd99f9.webp",
+    "wikipedia": null
   },
   {
     "id": "38d548bd-0a25-4fde-bbfa-04a44fb1c2f0",
     "label": "Basin Head Provincial Park",
-    "description": "Provincial park located in Basin Head, PEI. It is best known by its nickname \"Singing Sands\", in reference to the pure white sand that \"sings\" when stepped on, due to a high silica content.",
+    "description": "",
     "lngLat": [
-      -62.09127014030396,
-      46.387967489634065
+      -62.10913889,
+      46.37763889
     ],
     "icon": "beach",
-    "image": "/uploads/7f1a4e02-ffa6-4c7d-bd56-4531cedf65c3.webp"
+    "image": "/uploads/7f1a4e02-ffa6-4c7d-bd56-4531cedf65c3.webp",
+    "wikipedia": ""
   },
   {
     "id": "bd14e60c-7964-41d1-9385-02346dc6a08d",
@@ -74,7 +77,8 @@
       48.137070213499214
     ],
     "icon": "nature",
-    "image": ""
+    "image": "",
+    "wikipedia": null
   },
   {
     "id": "1bebbaaf-1064-4431-b163-7717d92d49b7",
@@ -96,7 +100,8 @@
       45.552862795448675
     ],
     "icon": "tent",
-    "image": ""
+    "image": "",
+    "wikipedia": null
   },
   {
     "id": "b84f1684-1e43-4008-ad34-f998b679aa8f",
@@ -107,6 +112,43 @@
       45.60934071664528
     ],
     "icon": "default",
-    "image": ""
+    "image": "",
+    "wikipedia": "none"
+  },
+  {
+    "id": "22b6189e-2e50-4f8f-b509-07113edccc15",
+    "label": "Bromont",
+    "description": "",
+    "lngLat": [
+      -72.65,
+      45.31666667
+    ],
+    "icon": "camera",
+    "image": "",
+    "wikipedia": "https://en.wikipedia.org/wiki/Bromont"
+  },
+  {
+    "id": "e14c70da-a505-4039-848d-94a13253a165",
+    "label": "Mont Tremblant",
+    "description": "",
+    "lngLat": [
+      -74.5528807374654,
+      46.22034722422197
+    ],
+    "icon": "mountain",
+    "image": "",
+    "wikipedia": null
+  },
+  {
+    "id": "e2debb2a-1e2c-4de9-9d1e-e434042907f4",
+    "label": "The Bottle Houses",
+    "description": "",
+    "lngLat": [
+      -64.10166667,
+      46.40222222
+    ],
+    "icon": "landmark",
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/Les_maisons_de_bouteilles_-_Bottle_Houses_-_The_six_gabled_house_%282%29.jpg/330px-Les_maisons_de_bouteilles_-_Bottle_Houses_-_The_six_gabled_house_%282%29.jpg",
+    "wikipedia": null
   }
 ]
