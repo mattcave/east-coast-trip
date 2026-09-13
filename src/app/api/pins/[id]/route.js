@@ -1,34 +1,34 @@
-import { readPins, writePins } from "@/lib/pins";
+import { mutatePins } from "@/lib/pins";
 
 export async function PATCH(request, { params }) {
   const { id } = await params;
   const updates = await request.json();
 
-  const pins = await readPins();
-  const index = pins.findIndex((p) => p.id === id);
+  const result = await mutatePins((pins) => {
+    const index = pins.findIndex((p) => p.id === id);
+    if (index === -1) return { result: { error: "Pin not found", status: 404 } };
 
-  if (index === -1) {
-    return Response.json({ error: "Pin not found" }, { status: 404 });
-  }
+    const updated = { ...pins[index], ...updates, id };
+    const nextPins = [...pins];
+    nextPins[index] = updated;
+    return { pins: nextPins, result: { pin: updated } };
+  });
 
-  pins[index] = { ...pins[index], ...updates, id };
-  await writePins(pins);
-
-  return Response.json(pins[index]);
+  if (result.error) return Response.json({ error: result.error }, { status: result.status });
+  return Response.json(result.pin);
 }
 
 export async function DELETE(_, { params }) {
   const { id } = await params;
 
-  const pins = await readPins();
-  const index = pins.findIndex((p) => p.id === id);
+  const result = await mutatePins((pins) => {
+    const index = pins.findIndex((p) => p.id === id);
+    if (index === -1) return { result: { error: "Pin not found", status: 404 } };
 
-  if (index === -1) {
-    return Response.json({ error: "Pin not found" }, { status: 404 });
-  }
+    const nextPins = pins.toSpliced(index, 1);
+    return { pins: nextPins, result: { ok: true } };
+  });
 
-  pins.splice(index, 1);
-  await writePins(pins);
-
+  if (result.error) return Response.json({ error: result.error }, { status: result.status });
   return new Response(null, { status: 204 });
 }

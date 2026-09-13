@@ -1,4 +1,4 @@
-import { readPins, writePins } from "@/lib/pins";
+import { readPins, mutatePins } from "@/lib/pins";
 
 export async function GET() {
   const pins = await readPins();
@@ -13,7 +13,6 @@ export async function POST(request) {
     return Response.json({ error: "label and lngLat are required" }, { status: 400 });
   }
 
-  const pins = await readPins();
   const newPin = {
     id: crypto.randomUUID(),
     label,
@@ -24,8 +23,7 @@ export async function POST(request) {
     wikipedia: wikipedia ?? null,
   };
 
-  pins.push(newPin);
-  await writePins(pins);
+  await mutatePins((pins) => ({ pins: [...pins, newPin] }));
 
   return Response.json(newPin, { status: 201 });
 }

@@ -307,6 +307,9 @@ function PinForm({ initial, onSave, onCancel, onPickLocation, onFlyTo }) {
           <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleFileChange} />
           {previewUrl ? "Replace image" : "Upload your own"}
         </label>
+        {/* TODO: add a way to remove an existing image outright (clear previewUrl,
+            pendingFile, and form.image) instead of only being able to replace it
+            with another upload. */}
       </div>
 
       <div>

@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "fs/promises";
+import { readFile, writeFile, rename } from "fs/promises";
 import path from "path";
 
 // Resolved at call time so tests can override via process.env.PINS_FILE
@@ -18,6 +18,33 @@ export async function readPins() {
   }
 }
 
+// Write via a temp file + rename so a reader never observes a partially
+// written file (rename is atomic on the same filesystem), and a crash
+// mid-write can't leave pins.json truncated.
 export async function writePins(pins) {
-  await writeFile(getPinsFile(), JSON.stringify(pins, null, 2));
+  const file = getPinsFile();
+  const tmp = `${file}.${process.pid}.${crypto.randomUUID()}.tmp`;
+  await writeFile(tmp, JSON.stringify(pins, null, 2));
+  await rename(tmp, file);
+}
+
+// Serializes read-modify-write access to pins.json within this process.
+// Route handlers that need to read pins, change them, and write them back
+// (create/update/delete) should go through here instead of calling
+// readPins/writePins directly — otherwise two concurrent requests can both
+// read the same starting state and the second write silently clobbers the
+// first (e.g. an image upload racing an unrelated edit and losing the
+// image field).
+let queue = Promise.resolve();
+export function mutatePins(mutate) {
+  const run = queue.then(async () => {
+    const pins = await readPins();
+    const { pins: nextPins, result } = await mutate(pins);
+    if (nextPins) await writePins(nextPins);
+    return result;
+  });
+  // Keep the queue alive even if this mutation failed, so later callers
+  // aren't blocked forever by one bad request.
+  queue = run.then(() => {}, () => {});
+  return run;
 }
