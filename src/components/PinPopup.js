@@ -2,11 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { X, ExternalLink } from "lucide-react";
+import Map from "./Map";
 
+// The plain `search?api=1&query=` URL ignores a `zoom` param and always
+// opens at Google's default place zoom, so a specific coordinate + zoom
+// needs the "/@lat,lng,zoomz" form instead. Web Mercator zoom levels match
+// MapLibre's, so the app's current zoom carries over directly.
 function googleMapsUrl(lngLat) {
   const lat = Array.isArray(lngLat) ? lngLat[1] : lngLat.lat;
   const lng = Array.isArray(lngLat) ? lngLat[0] : lngLat.lng;
-  return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+  const zoom = Math.round(Map.mapRef?.current?.getZoom() ?? 14);
+  return `https://www.google.com/maps/place/${lat},${lng}/@${lat},${lng},${zoom}z`;
 }
 
 function WikiSection({ pin }) {
