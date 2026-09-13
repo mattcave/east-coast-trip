@@ -164,6 +164,13 @@ function PinForm({ initial, onSave, onCancel, onPickLocation, onFlyTo }) {
     setPreviewUrl(URL.createObjectURL(file));
   };
 
+  const handleRemoveImage = () => {
+    if (previewUrl?.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+    setPendingFile(null);
+    setPreviewUrl(null);
+    set("image", "");
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     if (!form.lngLat) { setError("Please pick a location on the map."); return; }
@@ -303,13 +310,21 @@ function PinForm({ initial, onSave, onCancel, onPickLocation, onFlyTo }) {
             </button>
           </div>
         )}
-        <label className="flex items-center justify-center gap-2 w-full border border-dashed border-gray-300 hover:border-blue-400 text-gray-500 hover:text-blue-600 rounded-lg py-2 text-sm cursor-pointer transition-colors">
-          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleFileChange} />
-          {previewUrl ? "Replace image" : "Upload your own"}
-        </label>
-        {/* TODO: add a way to remove an existing image outright (clear previewUrl,
-            pendingFile, and form.image) instead of only being able to replace it
-            with another upload. */}
+        <div className="flex gap-2">
+          <label className="flex-1 flex items-center justify-center gap-2 border border-dashed border-gray-300 hover:border-blue-400 text-gray-500 hover:text-blue-600 rounded-lg py-2 text-sm cursor-pointer transition-colors">
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleFileChange} />
+            {previewUrl ? "Replace image" : "Upload your own"}
+          </label>
+          {previewUrl && (
+            <button
+              type="button"
+              onClick={handleRemoveImage}
+              className="px-3 border border-gray-200 hover:border-red-300 text-gray-500 hover:text-red-600 rounded-lg text-sm transition-colors"
+            >
+              Remove
+            </button>
+          )}
+        </div>
       </div>
 
       <div>
@@ -376,6 +391,10 @@ function PinForm({ initial, onSave, onCancel, onPickLocation, onFlyTo }) {
           Cancel
         </button>
       </div>
+      {/* TODO: add a way to delete the pin from here (when editing an existing
+          pin) instead of only from the list view — cancel back to the list,
+          find the row, then delete. Reuse the confirm/Yes/No pattern already
+          used in the list view's delete flow. */}
     </form>
   );
 }
