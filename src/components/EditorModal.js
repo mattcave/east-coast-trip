@@ -129,7 +129,7 @@ function LocationSearch({ onSelect }) {
   );
 }
 
-function PinForm({ initial, onSave, onCancel, onPickLocation, onFlyTo }) {
+function PinForm({ initial, onSave, onCancel, onDelete, onPickLocation, onFlyTo }) {
   const [form, setForm] = useState(initial ?? EMPTY_FORM);
   // pendingFile holds the File selected by the user but not yet uploaded.
   // A local object URL is generated for preview without a server round-trip.
@@ -139,6 +139,13 @@ function PinForm({ initial, onSave, onCancel, onPickLocation, onFlyTo }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [wikiThumb, setWikiThumb] = useState(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    await onDelete();
+  };
 
   const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
 
@@ -391,10 +398,40 @@ function PinForm({ initial, onSave, onCancel, onPickLocation, onFlyTo }) {
           Cancel
         </button>
       </div>
-      {/* TODO: add a way to delete the pin from here (when editing an existing
-          pin) instead of only from the list view — cancel back to the list,
-          find the row, then delete. Reuse the confirm/Yes/No pattern already
-          used in the list view's delete flow. */}
+
+      {initial?.id && onDelete && (
+        <div className="pt-1 border-t border-gray-100 mt-1">
+          {confirmingDelete ? (
+            <div className="flex items-center justify-center gap-2 text-sm pt-3">
+              <span className="text-gray-500">Delete this pin?</span>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="text-red-600 hover:text-red-800 font-medium disabled:opacity-50"
+              >
+                {deleting ? "Deleting…" : "Yes"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(false)}
+                disabled={deleting}
+                className="text-gray-500 hover:text-gray-700 disabled:opacity-50"
+              >
+                No
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              className="w-full text-center text-sm text-red-600 hover:text-red-800 font-medium py-2 transition-colors"
+            >
+              Delete pin
+            </button>
+          )}
+        </div>
+      )}
     </form>
   );
 }
@@ -430,6 +467,12 @@ export default function EditorModal({ pins, onClose, onStartPlacement, onRefresh
     await fetch("/api/logout", { method: "POST" });
     onClose();
     router.refresh();
+  };
+
+  const deleteFromForm = async (id) => {
+    await fetch(`/api/pins/${id}`, { method: "DELETE" });
+    await onRefresh();
+    backToList();
   };
 
   const confirmDelete = async () => {
@@ -530,6 +573,7 @@ export default function EditorModal({ pins, onClose, onStartPlacement, onRefresh
             initial={editingPin}
             onSave={handleSave}
             onCancel={backToList}
+            onDelete={editingPin ? () => deleteFromForm(editingPin.id) : null}
             onPickLocation={onStartPlacement}
             onFlyTo={onFlyTo}
           />
