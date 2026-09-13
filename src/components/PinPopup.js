@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { X, ExternalLink } from "lucide-react";
+
+function googleMapsUrl(lngLat) {
+  const lat = Array.isArray(lngLat) ? lngLat[1] : lngLat.lat;
+  const lng = Array.isArray(lngLat) ? lngLat[0] : lngLat.lng;
+  return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+}
 
 function WikiSection({ pin }) {
   const [wiki, setWiki] = useState(null);
@@ -99,6 +105,18 @@ export default function PinPopup({ pin, onClose, onEdit }) {
               {pin.description}
             </p>
           )}
+
+          <div className="mt-2">
+            <a
+              href={googleMapsUrl(pin.lngLat)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+            >
+              <ExternalLink size={12} />
+              View on Google Maps
+            </a>
+          </div>
 
           <WikiSection pin={pin} />
 
