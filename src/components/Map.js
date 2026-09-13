@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -33,6 +33,7 @@ function MarkerPin({ icon }) {
 export default function Map({ pins = [], placementMode = false, onLocationPick, onPinClick }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
+  const [initError, setInitError] = useState(null);
   const markersRef = useRef([]);      // MapLibre Marker instances
   const markerRootsRef = useRef([]);  // React roots rendered into each marker element
   const previewMarkerRef = useRef(null);
@@ -48,13 +49,19 @@ export default function Map({ pins = [], placementMode = false, onLocationPick, 
   useEffect(() => {
     if (mapRef.current) return;
 
-    const map = new maplibregl.Map({
-      container: containerRef.current,
-      style: "/api/map/style",
-      center: DEFAULT_CENTER,
-      zoom: DEFAULT_ZOOM,
-      minZoom: DEFAULT_ZOOM - 0.75,
-    });
+    let map;
+    try {
+      map = new maplibregl.Map({
+        container: containerRef.current,
+        style: "/api/map/style",
+        center: DEFAULT_CENTER,
+        zoom: DEFAULT_ZOOM,
+        minZoom: DEFAULT_ZOOM - 0.75,
+      });
+    } catch {
+      setInitError("The map couldn't start, possibly because WebGL is disabled or unavailable.");
+      return;
+    }
 
     mapRef.current = map;
     map.addControl(new maplibregl.NavigationControl(), "top-left");
@@ -166,6 +173,14 @@ export default function Map({ pins = [], placementMode = false, onLocationPick, 
       previewMarkerRef.current = null;
     };
   }, [placementMode, onLocationPick]);
+
+  if (initError) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-600 text-center p-6">
+        <p>{initError}</p>
+      </div>
+    );
+  }
 
   return <div ref={containerRef} className="w-full h-full" />;
 }
