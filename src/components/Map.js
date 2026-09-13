@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import maplibregl from "maplibre-gl";
+// maplibre-gl v6 ships ESM-only with no default export
+import * as maplibregl from "maplibre-gl";
 import Supercluster from "supercluster";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { PIN_ICONS } from "@/lib/icons";
@@ -80,6 +81,11 @@ export default function Map({ pins = [], placementMode = false, onLocationPick, 
   useEffect(() => {
     if (mapRef.current) return;
 
+    // Turbopack can't statically bundle the worker maplibre-gl resolves
+    // internally via new URL(...); without this, the tile-processing worker
+    // silently fails to load and no vector tiles ever get requested.
+    maplibregl.setWorkerUrl("/api/map/worker/maplibre-gl-worker.mjs");
+
     let map;
     try {
       map = new maplibregl.Map({
@@ -115,8 +121,10 @@ export default function Map({ pins = [], placementMode = false, onLocationPick, 
     // The Stadia Outdoors style references sprite icons (e.g. shelter_11) that
     // are missing from its sprite sheet. Substitute a transparent 1x1 pixel to
     // prevent MapLibre from logging warnings for each missing image.
-    map.on("styleimagemissing", (e) => {
-      map.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) });
+    // (v6: the "styleimagemissing" event listener can no longer resolve the
+    // request via addImage — that must go through setMissingStyleImageResolver.)
+    map.setMissingStyleImageResolver((id) => {
+      map.addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
     });
 
     return () => {
