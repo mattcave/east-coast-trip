@@ -6,7 +6,8 @@ An interactive road trip map for our summer drive from Ontario to Nova Scotia. L
 
 - **[Next.js 16](https://nextjs.org)** — App Router, server components, API route handlers
 - **[MapLibre GL JS](https://maplibre.org)** — client-side interactive map
-- **[Stadia Maps](https://stadiamaps.com)** — Outdoors tile style + geocoding API
+- **[Stadia Maps](https://stadiamaps.com)** — Outdoors tile style, sprites, and fonts
+- **[Mapbox Geocoding API](https://docs.mapbox.com/api/search/geocoding/)** — place-name search when adding/editing a pin
 - **[Sharp](https://sharp.pixelplumbing.com)** — server-side image resizing and WebP conversion
 - **[Tailwind CSS v4](https://tailwindcss.com)** — styling
 - **[Lucide React](https://lucide.dev)** — pin icons
@@ -19,7 +20,7 @@ An interactive road trip map for our summer drive from Ontario to Nova Scotia. L
 - Authenticated admin panel (single shared password)
 - Add pins by searching for a place or clicking the map
 - Image upload with automatic crop and resize (1200×800 WebP)
-- API key kept server-side — never exposed to the client
+- API keys kept server-side — never exposed to the client
 
 ## Development
 
@@ -27,6 +28,7 @@ An interactive road trip map for our summer drive from Ontario to Nova Scotia. L
 
 - Node.js 22+
 - A [Stadia Maps](https://stadiamaps.com) API key (free tier is sufficient)
+- A [Mapbox](https://account.mapbox.com/access-tokens/) access token (free tier is sufficient) — used only for place-name search; adding pins by clicking the map still works without it
 
 ### Setup
 
@@ -38,6 +40,7 @@ Create `.env.local` in the project root:
 
 ```env
 STADIA_API_KEY=your_stadia_api_key
+MAPBOX_TOKEN=your_mapbox_token
 ADMIN_PASSWORD=your_admin_password
 SESSION_SECRET=a_long_random_string
 ```
