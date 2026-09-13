@@ -3,12 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import maplibregl from "maplibre-gl";
+import Supercluster from "supercluster";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { PIN_ICONS } from "@/lib/icons";
 
 // Bounds: Toronto (west) to Sydney NS (east)
 const DEFAULT_CENTER = [-69.8, 45.2];
 const DEFAULT_ZOOM = 5.5;
+
+// Pixel radius (at the current zoom) within which pins are grouped into a
+// cluster, and the zoom past which they always render individually.
+const CLUSTER_RADIUS = 60;
+const CLUSTER_MAX_ZOOM = 16;
 
 function MarkerPin({ icon }) {
   const { icon: Icon, color } = PIN_ICONS[icon] ?? PIN_ICONS.default;
@@ -30,12 +36,37 @@ function MarkerPin({ icon }) {
   );
 }
 
+function ClusterBadge({ count }) {
+  // Bigger badge for bigger clusters, capped so it doesn't get absurd
+  const size = Math.min(36 + Math.log2(count) * 6, 60);
+  return (
+    <div style={{
+      background: "#1f2937",
+      color: "white",
+      borderRadius: "50%",
+      width: size,
+      height: size,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      border: "2px solid white",
+      boxShadow: "0 2px 6px rgba(0,0,0,0.35)",
+      cursor: "pointer",
+      fontSize: 13,
+      fontWeight: 600,
+    }}>
+      {count}
+    </div>
+  );
+}
+
 export default function Map({ pins = [], placementMode = false, onLocationPick, onPinClick }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const [initError, setInitError] = useState(null);
   const markersRef = useRef([]);      // MapLibre Marker instances
   const markerRootsRef = useRef([]);  // React roots rendered into each marker element
+  const clusterIndexRef = useRef(null);
   const previewMarkerRef = useRef(null);
   // Refs so marker clicks always call the latest callbacks without re-creating markers
   const onPinClickRef = useRef(onPinClick);
@@ -96,12 +127,34 @@ export default function Map({ pins = [], placementMode = false, onLocationPick, 
     };
   }, []);
 
-  // Re-render pin markers whenever the pins array changes
+  // Rebuild the cluster index whenever the pins array changes. Pins that are
+  // close together (or at the same coordinates) get grouped into a single
+  // bubble showing how many are there, instead of fully overlapping and
+  // hiding each other with no indication more than one pin exists.
+  useEffect(() => {
+    clusterIndexRef.current = new Supercluster({
+      radius: CLUSTER_RADIUS,
+      maxZoom: CLUSTER_MAX_ZOOM,
+    }).load(
+      pins.map((pin) => ({
+        type: "Feature",
+        properties: { pinId: pin.id },
+        geometry: { type: "Point", coordinates: pin.lngLat },
+      }))
+    );
+  }, [pins]);
+
+  // Re-render markers (clusters + individual pins) whenever the pins array
+  // changes or the map's viewport changes, since cluster membership depends
+  // on both.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    const addMarkers = () => {
+    const renderMarkers = () => {
+      const index = clusterIndexRef.current;
+      if (!index) return;
+
       // Remove existing MapLibre markers from the map
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
@@ -112,32 +165,53 @@ export default function Map({ pins = [], placementMode = false, onLocationPick, 
       markerRootsRef.current = [];
       setTimeout(() => rootsToUnmount.forEach((r) => r.unmount()), 0);
 
-      pins.forEach(({ id, lngLat, label, description, image, icon }) => {
+      const bounds = map.getBounds();
+      const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
+      const zoom = Math.floor(map.getZoom());
+      const clusters = index.getClusters(bbox, zoom);
+
+      clusters.forEach((feature) => {
+        const [lng, lat] = feature.geometry.coordinates;
         const el = document.createElement("div");
         const root = createRoot(el);
-        root.render(<MarkerPin icon={icon} />);
         markerRootsRef.current.push(root);
 
-        el.dataset.pinId = id;
-        el.addEventListener("click", () => {
-          // Ignore marker clicks during placement mode — user is picking a location
-          if (!placementModeRef.current) {
-            onPinClickRef.current?.({ id, lngLat, label, description, image, icon });
-          }
-        });
+        if (feature.properties.cluster) {
+          const { cluster_id: clusterId, point_count: count } = feature.properties;
+          root.render(<ClusterBadge count={count} />);
+          el.addEventListener("click", () => {
+            if (placementModeRef.current) return;
+            const expansionZoom = Math.min(index.getClusterExpansionZoom(clusterId), CLUSTER_MAX_ZOOM + 1);
+            map.flyTo({ center: [lng, lat], zoom: expansionZoom });
+          });
+        } else {
+          const pin = pins.find((p) => p.id === feature.properties.pinId);
+          if (!pin) return;
+          root.render(<MarkerPin icon={pin.icon} />);
+          el.dataset.pinId = pin.id;
+          el.addEventListener("click", () => {
+            // Ignore marker clicks during placement mode — user is picking a location
+            if (!placementModeRef.current) {
+              onPinClickRef.current?.(pin);
+            }
+          });
+        }
 
         const marker = new maplibregl.Marker({ element: el })
-          .setLngLat(lngLat)
+          .setLngLat([lng, lat])
           .addTo(map);
         markersRef.current.push(marker);
       });
     };
 
     if (map.isStyleLoaded()) {
-      addMarkers();
+      renderMarkers();
     } else {
-      map.once("load", addMarkers);
+      map.once("load", renderMarkers);
     }
+
+    map.on("moveend", renderMarkers);
+    return () => map.off("moveend", renderMarkers);
   }, [pins]);
 
   // Handle placement mode: crosshair cursor, preview marker, click to pick
