@@ -13,7 +13,7 @@ const DEFAULT_ZOOM = 5.5;
 
 // Pixel radius (at the current zoom) within which pins are grouped into a
 // cluster, and the zoom past which they always render individually.
-const CLUSTER_RADIUS = 60;
+const CLUSTER_RADIUS = 40;
 const CLUSTER_MAX_ZOOM = 16;
 
 function MarkerPin({ icon }) {
