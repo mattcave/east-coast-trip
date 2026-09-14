@@ -162,7 +162,8 @@ export default function PinPopup({ pin, onClose, onEdit }) {
           <div className="w-10 h-1 bg-gray-300 rounded-full" />
         </div>
 
-        <PhotoCarousel images={pin.images ?? []} alt={pin.label} />
+        {/* Falls back to the legacy single `image` string for pins saved before multi-photo support */}
+        <PhotoCarousel images={pin.images ?? (pin.image ? [pin.image] : [])} alt={pin.label} />
 
         <div className="p-4 pb-8 sm:p-6 sm:pb-6">
           <div className="flex items-start justify-between gap-3">
