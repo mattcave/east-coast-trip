@@ -8,8 +8,8 @@ import { readPins } from "@/lib/pins.js";
 const TEMP_FILE = join(tmpdir(), "east-coast-trip-pins-id-route.test.json");
 
 const SAMPLE_PINS = [
-  { id: "1", label: "Home", description: "Starting point", lngLat: [-79.12, 44.1], icon: "home", image: "" },
-  { id: "2", label: "Peggy's Cove", description: "Lighthouse", lngLat: [-63.9189, 44.4919], icon: "landmark", image: "" },
+  { id: "1", label: "Home", description: "Starting point", lngLat: [-79.12, 44.1], icon: "home", images: [] },
+  { id: "2", label: "Peggy's Cove", description: "Lighthouse", lngLat: [-63.9189, 44.4919], icon: "landmark", images: [] },
 ];
 
 beforeEach(async () => {

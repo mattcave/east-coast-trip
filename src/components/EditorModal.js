@@ -9,7 +9,6 @@ const EMPTY_FORM = {
   label: "",
   description: "",
   icon: "default",
-  image: "",
   lngLat: null,
   wikipedia: null, // null = auto-detect, "none" = disabled, URL string = specific article
 };
@@ -131,11 +130,15 @@ function LocationSearch({ onSelect }) {
 
 function PinForm({ initial, onSave, onCancel, onDelete, onPickLocation, onFlyTo }) {
   const [form, setForm] = useState(initial ?? EMPTY_FORM);
-  // pendingFile holds the File selected by the user but not yet uploaded.
-  // A local object URL is generated for preview without a server round-trip.
-  // The actual upload happens on submit, just before the pin is saved.
-  const [pendingFile, setPendingFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(initial?.image ?? null);
+  // Unified gallery: each entry is either an already-saved photo
+  // ({ kind: "existing", url }) or a file picked but not yet uploaded
+  // ({ kind: "pending", file, previewUrl }, previewUrl being a local blob URL
+  // for instant preview). The actual upload happens on submit, in order, so
+  // the saved `images` array matches what's shown here. Falls back to the
+  // legacy single `image` string for pins saved before multi-photo support.
+  const [images, setImages] = useState(
+    (initial?.images ?? (initial?.image ? [initial.image] : [])).map((url) => ({ kind: "existing", url }))
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [wikiThumb, setWikiThumb] = useState(null);
@@ -159,23 +162,37 @@ function PinForm({ initial, onSave, onCancel, onDelete, onPickLocation, onFlyTo 
       .catch(() => {});
   }, [form.wikipedia]);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!ALLOWED_TYPES.has(file.type)) { setError("Invalid file type. Allowed: JPEG, PNG, WebP, GIF"); return; }
-    if (file.size > MAX_BYTES) { setError("File too large. Maximum size is 10MB"); return; }
+  const handleFilesChange = (e) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = ""; // allow re-selecting the same file(s) again later
+    if (files.length === 0) return;
+
+    const accepted = [];
+    for (const file of files) {
+      if (!ALLOWED_TYPES.has(file.type)) { setError("Invalid file type. Allowed: JPEG, PNG, WebP, GIF"); continue; }
+      if (file.size > MAX_BYTES) { setError("File too large. Maximum size is 10MB"); continue; }
+      accepted.push(file);
+    }
+    if (accepted.length === 0) return;
     setError(null);
-    setPendingFile(file);
-    // Revoke any previous object URL to avoid memory leaks
-    if (previewUrl?.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(URL.createObjectURL(file));
+    setImages((prev) => [
+      ...prev,
+      ...accepted.map((file) => ({ kind: "pending", file, previewUrl: URL.createObjectURL(file) })),
+    ]);
   };
 
-  const handleRemoveImage = () => {
-    if (previewUrl?.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
-    setPendingFile(null);
-    setPreviewUrl(null);
-    set("image", "");
+  const handleRemoveImage = (index) => {
+    setImages((prev) => {
+      const target = prev[index];
+      if (target?.kind === "pending") URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const wikiThumbAdded = images.some((img) => img.kind === "existing" && img.url === wikiThumb);
+  const addWikiPhoto = () => {
+    if (!wikiThumb) return;
+    setImages((prev) => [...prev, { kind: "existing", url: wikiThumb }]);
   };
 
   const submit = async (e) => {
@@ -185,18 +202,24 @@ function PinForm({ initial, onSave, onCancel, onDelete, onPickLocation, onFlyTo 
     setSaving(true);
     setError(null);
 
-    // Upload the pending image first, then save the pin with the returned URL
-    let imageUrl = form.image;
-    if (pendingFile) {
+    // Upload any pending files, in order, then save the pin with the full
+    // resolved URL list so it matches what the gallery shows.
+    const resolvedImages = [];
+    for (const img of images) {
+      if (img.kind === "existing") {
+        resolvedImages.push(img.url);
+        continue;
+      }
       const fd = new FormData();
-      fd.append("file", pendingFile);
+      fd.append("file", img.file);
       const uploadRes = await fetch("/api/upload", { method: "POST", body: fd });
       if (!uploadRes.ok) {
         setError("Image upload failed. Please try again.");
         setSaving(false);
         return;
       }
-      ({ url: imageUrl } = await uploadRes.json());
+      const { url: uploadedUrl } = await uploadRes.json();
+      resolvedImages.push(uploadedUrl);
     }
 
     const isNew = !initial?.id;
@@ -212,7 +235,7 @@ function PinForm({ initial, onSave, onCancel, onDelete, onPickLocation, onFlyTo 
     const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, lngLat, image: imageUrl }),
+      body: JSON.stringify({ ...form, lngLat, images: resolvedImages }),
     });
 
     if (!res.ok) {
@@ -292,46 +315,56 @@ function PinForm({ initial, onSave, onCancel, onDelete, onPickLocation, onFlyTo 
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">Image</label>
-        {previewUrl && (
-          <img
-            src={previewUrl}
-            alt="Preview"
-            className="w-full h-36 object-cover rounded-lg mb-2"
-          />
+        <label className="block text-xs font-medium text-gray-600 mb-1">Photos</label>
+        {images.length > 0 && (
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            {images.map((img, i) => (
+              <div key={i} className="relative aspect-square overflow-hidden rounded-lg">
+                <img
+                  src={img.kind === "existing" ? img.url : img.previewUrl}
+                  alt={`Photo ${i + 1}`}
+                  className="w-full h-full object-cover rounded-lg"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveImage(i)}
+                  aria-label={`Remove photo ${i + 1}`}
+                  className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-full p-0.5 transition-colors"
+                >
+                  <X size={12} />
+                </button>
+                {i === 0 && (
+                  <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">
+                    Cover
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
         )}
-        {/* Wikipedia thumbnail suggestion — shown when a Wikipedia article is linked and no image is set yet */}
-        {wikiThumb && !previewUrl && (
+        {/* Wikipedia thumbnail suggestion — shown when a Wikipedia article is linked and not already added */}
+        {wikiThumb && !wikiThumbAdded && (
           <div className="mb-2">
-            <img src={wikiThumb} alt="Wikipedia" className="w-full h-36 object-cover rounded-lg mb-1.5 opacity-60" />
+            <img src={wikiThumb} alt="Wikipedia" className="w-full h-28 object-cover rounded-lg mb-1.5 opacity-60" />
             <button
               type="button"
-              onClick={() => {
-                set("image", wikiThumb);
-                setPreviewUrl(wikiThumb);
-                setPendingFile(null);
-              }}
+              onClick={addWikiPhoto}
               className="w-full text-center text-xs font-medium text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 rounded-lg py-1.5 transition-colors"
             >
-              Use Wikipedia photo
+              Add Wikipedia photo
             </button>
           </div>
         )}
-        <div className="flex gap-2">
-          <label className="flex-1 flex items-center justify-center gap-2 border border-dashed border-gray-300 hover:border-blue-400 text-gray-500 hover:text-blue-600 rounded-lg py-2 text-sm cursor-pointer transition-colors">
-            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleFileChange} />
-            {previewUrl ? "Replace image" : "Upload your own"}
-          </label>
-          {previewUrl && (
-            <button
-              type="button"
-              onClick={handleRemoveImage}
-              className="px-3 border border-gray-200 hover:border-red-300 text-gray-500 hover:text-red-600 rounded-lg text-sm transition-colors"
-            >
-              Remove
-            </button>
-          )}
-        </div>
+        <label className="flex items-center justify-center gap-2 w-full border border-dashed border-gray-300 hover:border-blue-400 text-gray-500 hover:text-blue-600 rounded-lg py-2 text-sm cursor-pointer transition-colors">
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            multiple
+            className="hidden"
+            onChange={handleFilesChange}
+          />
+          Add photos
+        </label>
       </div>
 
       <div>

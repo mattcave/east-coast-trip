@@ -7,7 +7,7 @@ export async function GET() {
 
 export async function POST(request) {
   const body = await request.json();
-  const { label, description, lngLat, icon, image, wikipedia } = body;
+  const { label, description, lngLat, icon, images, wikipedia } = body;
 
   if (!label || !lngLat) {
     return Response.json({ error: "label and lngLat are required" }, { status: 400 });
@@ -19,7 +19,7 @@ export async function POST(request) {
     description: description ?? "",
     lngLat,
     icon: icon ?? "default",
-    image: image ?? "",
+    images: images ?? [],
     wikipedia: wikipedia ?? null,
   };
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { X, ExternalLink } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { X, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 import Map from "./Map";
 
 // The plain `search?api=1&query=` URL ignores a `zoom` param and always
@@ -13,6 +13,83 @@ function googleMapsUrl(lngLat) {
   const lng = Array.isArray(lngLat) ? lngLat[0] : lngLat.lng;
   const zoom = Math.round(Map.mapRef?.current?.getZoom() ?? 14);
   return `https://www.google.com/maps/place/${lat},${lng}/@${lat},${lng},${zoom}z`;
+}
+
+// Swipeable/scrollable photo carousel. A single photo renders with no
+// carousel chrome (dots/arrows); multiple photos get a horizontal
+// scroll-snap strip so it works natively with touch swipe on mobile and
+// click-drag or the arrow buttons on desktop, without any extra library.
+function PhotoCarousel({ images, alt }) {
+  const [index, setIndex] = useState(0);
+  const scrollerRef = useRef(null);
+
+  if (images.length === 0) return null;
+
+  const scrollToIndex = (i) => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    scroller.scrollTo({ left: i * scroller.clientWidth, behavior: "smooth" });
+  };
+
+  const handleScroll = () => {
+    const scroller = scrollerRef.current;
+    if (!scroller || scroller.clientWidth === 0) return;
+    setIndex(Math.round(scroller.scrollLeft / scroller.clientWidth));
+  };
+
+  if (images.length === 1) {
+    return <img src={images[0]} alt={alt} className="w-full h-52 object-cover sm:h-64" />;
+  }
+
+  return (
+    <div className="relative">
+      <div
+        ref={scrollerRef}
+        onScroll={handleScroll}
+        className="flex h-52 sm:h-64 overflow-x-auto snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden"
+        style={{ scrollbarWidth: "none" }}
+      >
+        {images.map((src, i) => (
+          <img
+            key={i}
+            src={src}
+            alt={`${alt} photo ${i + 1} of ${images.length}`}
+            className="w-full h-full object-cover flex-shrink-0 snap-center"
+          />
+        ))}
+      </div>
+
+      {index > 0 && (
+        <button
+          type="button"
+          onClick={() => scrollToIndex(index - 1)}
+          aria-label="Previous photo"
+          className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1 transition-colors"
+        >
+          <ChevronLeft size={18} />
+        </button>
+      )}
+      {index < images.length - 1 && (
+        <button
+          type="button"
+          onClick={() => scrollToIndex(index + 1)}
+          aria-label="Next photo"
+          className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1 transition-colors"
+        >
+          <ChevronRight size={18} />
+        </button>
+      )}
+
+      <div className="absolute bottom-2 inset-x-0 flex justify-center gap-1.5 pointer-events-none">
+        {images.map((_, i) => (
+          <span
+            key={i}
+            className={`w-1.5 h-1.5 rounded-full shadow ${i === index ? "bg-white" : "bg-white/50"}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function WikiSection({ pin }) {
@@ -85,13 +162,7 @@ export default function PinPopup({ pin, onClose, onEdit }) {
           <div className="w-10 h-1 bg-gray-300 rounded-full" />
         </div>
 
-        {pin.image && (
-          <img
-            src={pin.image}
-            alt={pin.label}
-            className="w-full h-52 object-cover sm:h-64"
-          />
-        )}
+        <PhotoCarousel images={pin.images ?? []} alt={pin.label} />
 
         <div className="p-4 pb-8 sm:p-6 sm:pb-6">
           <div className="flex items-start justify-between gap-3">

@@ -8,8 +8,10 @@
       44.122814018109835
     ],
     "icon": "home",
-    "image": "/uploads/85158e4e-bd53-46aa-998a-7bb428e056c7.webp",
-    "wikipedia": "none"
+    "wikipedia": "none",
+    "images": [
+      "/uploads/85158e4e-bd53-46aa-998a-7bb428e056c7.webp"
+    ]
   },
   {
     "id": "2",
@@ -20,8 +22,10 @@
       44.4919
     ],
     "icon": "landmark",
-    "image": "/uploads/3742a8d2-232f-478b-a308-41de96fd99f9.webp",
-    "wikipedia": null
+    "wikipedia": null,
+    "images": [
+      "/uploads/3742a8d2-232f-478b-a308-41de96fd99f9.webp"
+    ]
   },
   {
     "id": "38d548bd-0a25-4fde-bbfa-04a44fb1c2f0",
@@ -32,8 +36,10 @@
       46.37763889
     ],
     "icon": "beach",
-    "image": "/uploads/7f1a4e02-ffa6-4c7d-bd56-4531cedf65c3.webp",
-    "wikipedia": ""
+    "wikipedia": "",
+    "images": [
+      "/uploads/7f1a4e02-ffa6-4c7d-bd56-4531cedf65c3.webp"
+    ]
   },
   {
     "id": "bd14e60c-7964-41d1-9385-02346dc6a08d",
@@ -44,7 +50,9 @@
       45.90443200455775
     ],
     "icon": "nature",
-    "image": "/uploads/0a4642e3-12b5-4304-9cad-3ce82169665e.webp"
+    "images": [
+      "/uploads/0a4642e3-12b5-4304-9cad-3ce82169665e.webp"
+    ]
   },
   {
     "id": "4c93fd22-a7e6-4085-b5f8-ab980e7f2ed8",
@@ -55,7 +63,9 @@
       47.02615663051276
     ],
     "icon": "tent",
-    "image": "/uploads/c9dbbce9-fce5-4a82-8ea7-e39d4dceb60f.webp"
+    "images": [
+      "/uploads/c9dbbce9-fce5-4a82-8ea7-e39d4dceb60f.webp"
+    ]
   },
   {
     "id": "62379b14-2410-420c-aa06-322fc0bde5b4",
@@ -66,7 +76,7 @@
       45.331677194311396
     ],
     "icon": "tent",
-    "image": ""
+    "images": []
   },
   {
     "id": "ac822676-9f87-455c-91fb-4e6c15dee6cb",
@@ -77,8 +87,8 @@
       48.137070213499214
     ],
     "icon": "nature",
-    "image": "",
-    "wikipedia": null
+    "wikipedia": null,
+    "images": []
   },
   {
     "id": "1bebbaaf-1064-4431-b163-7717d92d49b7",
@@ -89,7 +99,7 @@
       44.51641390155322
     ],
     "icon": "tent",
-    "image": ""
+    "images": []
   },
   {
     "id": "9beb4d4a-77eb-4d56-9cfd-cb900380279c",
@@ -100,8 +110,8 @@
       45.552862795448675
     ],
     "icon": "tent",
-    "image": "",
-    "wikipedia": null
+    "wikipedia": null,
+    "images": []
   },
   {
     "id": "b84f1684-1e43-4008-ad34-f998b679aa8f",
@@ -112,8 +122,8 @@
       45.60934071664528
     ],
     "icon": "default",
-    "image": "",
-    "wikipedia": "none"
+    "wikipedia": "none",
+    "images": []
   },
   {
     "id": "22b6189e-2e50-4f8f-b509-07113edccc15",
@@ -124,8 +134,8 @@
       45.31666667
     ],
     "icon": "attraction",
-    "image": "",
-    "wikipedia": "https://en.wikipedia.org/wiki/Bromont"
+    "wikipedia": "https://en.wikipedia.org/wiki/Bromont",
+    "images": []
   },
   {
     "id": "e14c70da-a505-4039-848d-94a13253a165",
@@ -136,8 +146,8 @@
       46.22034722422197
     ],
     "icon": "nature",
-    "image": "",
-    "wikipedia": null
+    "wikipedia": null,
+    "images": []
   },
   {
     "id": "e2debb2a-1e2c-4de9-9d1e-e434042907f4",
@@ -148,7 +158,9 @@
       46.40222222
     ],
     "icon": "landmark",
-    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/Les_maisons_de_bouteilles_-_Bottle_Houses_-_The_six_gabled_house_%282%29.jpg/330px-Les_maisons_de_bouteilles_-_Bottle_Houses_-_The_six_gabled_house_%282%29.jpg",
-    "wikipedia": null
+    "wikipedia": null,
+    "images": [
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/Les_maisons_de_bouteilles_-_Bottle_Houses_-_The_six_gabled_house_%282%29.jpg/330px-Les_maisons_de_bouteilles_-_Bottle_Houses_-_The_six_gabled_house_%282%29.jpg"
+    ]
   }
 ]
