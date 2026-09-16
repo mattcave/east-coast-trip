@@ -28,6 +28,11 @@ export async function POST(request) {
   const buffer = Buffer.from(await file.arrayBuffer());
 
   const processed = await sharp(buffer)
+    // Auto-orient based on the EXIF Orientation tag before resizing — phone
+    // photos are often stored "sideways" with a tag saying how to rotate
+    // them for display, and cropping before applying that tag bakes in the
+    // wrong orientation.
+    .rotate()
     .resize(OUTPUT_WIDTH, OUTPUT_HEIGHT, { fit: "cover", position: "attention" })
     .webp({ quality: 85 })
     .toBuffer();
