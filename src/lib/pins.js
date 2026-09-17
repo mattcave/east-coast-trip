@@ -1,9 +1,47 @@
-import { readFile, writeFile, rename } from "fs/promises";
+import { readFile, writeFile, rename, unlink } from "fs/promises";
 import path from "path";
 
 // Resolved at call time so tests can override via process.env.PINS_FILE
 function getPinsFile() {
   return process.env.PINS_FILE ?? path.join(process.cwd(), "data", "pins.json");
+}
+
+// Resolved at call time so tests can override via process.env.UPLOADS_DIR
+function getUploadsDir() {
+  return process.env.UPLOADS_DIR ?? path.join(process.cwd(), "public", "uploads");
+}
+
+function collectImageUrls(pins) {
+  const urls = new Set();
+  for (const pin of pins) {
+    for (const url of pin.images ?? (pin.image ? [pin.image] : [])) {
+      urls.add(url);
+    }
+  }
+  return urls;
+}
+
+// Removes uploaded image files that no longer appear on any pin, e.g. after a
+// photo is removed from a pin or the pin itself is deleted. Only ever touches
+// files under public/uploads (matched by the exact /uploads/<name> URL
+// shape) — an external image URL (e.g. a linked Wikipedia photo) never
+// matches and is left alone.
+async function deleteOrphanedImages(oldPins, newPins) {
+  const before = collectImageUrls(oldPins);
+  const after = collectImageUrls(newPins);
+  const uploadsDir = getUploadsDir();
+
+  for (const url of before) {
+    if (after.has(url)) continue;
+
+    const match = /^\/uploads\/([^/]+)$/.exec(url);
+    if (!match) continue;
+
+    const filePath = path.join(uploadsDir, match[1]);
+    if (!filePath.startsWith(uploadsDir + path.sep)) continue;
+
+    await unlink(filePath).catch(() => {});
+  }
 }
 
 export async function readPins() {
@@ -40,7 +78,10 @@ export function mutatePins(mutate) {
   const run = queue.then(async () => {
     const pins = await readPins();
     const { pins: nextPins, result } = await mutate(pins);
-    if (nextPins) await writePins(nextPins);
+    if (nextPins) {
+      await writePins(nextPins);
+      await deleteOrphanedImages(pins, nextPins);
+    }
     return result;
   });
   // Keep the queue alive even if this mutation failed, so later callers

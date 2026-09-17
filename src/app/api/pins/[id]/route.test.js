@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { writeFile, unlink } from "fs/promises";
+import { writeFile, unlink, mkdir, rm, access } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { PATCH, DELETE } from "./route.js";
 import { readPins } from "@/lib/pins.js";
 
 const TEMP_FILE = join(tmpdir(), "east-coast-trip-pins-id-route.test.json");
+const TEMP_UPLOADS_DIR = join(tmpdir(), "east-coast-trip-pins-id-route-uploads.test");
 
 const SAMPLE_PINS = [
   { id: "1", label: "Home", description: "Starting point", lngLat: [-79.12, 44.1], icon: "home", images: [] },
@@ -14,13 +15,21 @@ const SAMPLE_PINS = [
 
 beforeEach(async () => {
   process.env.PINS_FILE = TEMP_FILE;
+  process.env.UPLOADS_DIR = TEMP_UPLOADS_DIR;
   await writeFile(TEMP_FILE, JSON.stringify(SAMPLE_PINS));
+  await mkdir(TEMP_UPLOADS_DIR, { recursive: true });
 });
 
 afterEach(async () => {
   delete process.env.PINS_FILE;
+  delete process.env.UPLOADS_DIR;
   await unlink(TEMP_FILE).catch(() => {});
+  await rm(TEMP_UPLOADS_DIR, { recursive: true, force: true });
 });
+
+async function exists(filePath) {
+  return access(filePath).then(() => true, () => false);
+}
 
 // Next.js 16 passes params as a Promise
 const makeParams = (id) => ({ params: Promise.resolve({ id }) });
@@ -60,6 +69,36 @@ describe("PATCH /api/pins/[id]", () => {
     const response = await PATCH(patchRequest("999", { label: "x" }), makeParams("999"));
     expect(response.status).toBe(404);
   });
+
+  it("deletes an uploaded image file once removed from the pin", async () => {
+    const imagePath = join(TEMP_UPLOADS_DIR, "kept.webp");
+    const removedPath = join(TEMP_UPLOADS_DIR, "removed.webp");
+    await writeFile(imagePath, "kept");
+    await writeFile(removedPath, "removed");
+    await PATCH(patchRequest("1", { images: ["/uploads/kept.webp", "/uploads/removed.webp"] }), makeParams("1"));
+
+    await PATCH(patchRequest("1", { images: ["/uploads/kept.webp"] }), makeParams("1"));
+
+    expect(await exists(imagePath)).toBe(true);
+    expect(await exists(removedPath)).toBe(false);
+  });
+
+  it("does not delete an image still referenced by another pin", async () => {
+    const sharedPath = join(TEMP_UPLOADS_DIR, "shared.webp");
+    await writeFile(sharedPath, "shared");
+    await PATCH(patchRequest("1", { images: ["/uploads/shared.webp"] }), makeParams("1"));
+    await PATCH(patchRequest("2", { images: ["/uploads/shared.webp"] }), makeParams("2"));
+
+    await PATCH(patchRequest("1", { images: [] }), makeParams("1"));
+
+    expect(await exists(sharedPath)).toBe(true);
+  });
+
+  it("never deletes an external (non-uploaded) image URL", async () => {
+    await PATCH(patchRequest("1", { images: ["https://example.com/photo.jpg"] }), makeParams("1"));
+    // Should simply not throw when the "removed" URL isn't a local upload
+    await expect(PATCH(patchRequest("1", { images: [] }), makeParams("1"))).resolves.toBeDefined();
+  });
 });
 
 describe("DELETE /api/pins/[id]", () => {
@@ -78,5 +117,15 @@ describe("DELETE /api/pins/[id]", () => {
   it("returns 404 for an unknown id", async () => {
     const response = await DELETE(null, makeParams("999"));
     expect(response.status).toBe(404);
+  });
+
+  it("deletes the pin's uploaded image files", async () => {
+    const imagePath = join(TEMP_UPLOADS_DIR, "gone.webp");
+    await writeFile(imagePath, "gone");
+    await PATCH(patchRequest("1", { images: ["/uploads/gone.webp"] }), makeParams("1"));
+
+    await DELETE(null, makeParams("1"));
+
+    expect(await exists(imagePath)).toBe(false);
   });
 });
