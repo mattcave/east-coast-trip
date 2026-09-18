@@ -129,7 +129,13 @@ export default function Map({ pins = [], placementMode = false, onLocationPick, 
 
     return () => {
       markersRef.current.forEach((m) => m.remove());
-      markerRootsRef.current.forEach((r) => r.unmount());
+      // Deferred (not synchronous) for the same reason as the marker
+      // re-render effect below: unmounting a React root synchronously
+      // while React is still mid-render (e.g. during Fast Refresh teardown)
+      // triggers "Attempted to synchronously unmount a root..." warnings.
+      const rootsToUnmount = [...markerRootsRef.current];
+      markerRootsRef.current = [];
+      setTimeout(() => rootsToUnmount.forEach((r) => r.unmount()), 0);
       mapRef.current?.remove();
       mapRef.current = null;
     };

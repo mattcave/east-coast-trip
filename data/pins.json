@@ -1,166 +1,574 @@
 [
   {
-    "id": "1",
-    "label": "Home",
-    "description": "Uxbridge, Ontario — our starting point.",
+    "id": "c36a8698-12bf-4c23-a56b-528dbebcf55e",
+    "label": "Cemetery - Mechanic Settlement",
+    "description": "Leaving Fundy National Park, we spotted a roadside sign and screeched the motorhome to a stop - history buff Krista couldn't resist! We explored in flip-flops and found the graves of three early settlers. Fun fact: \"Mechanic Settlement\" wasn't founded by car mechanics - back in 1843, \"mechanic\" meant a skilled tradesperson, and a group of them from Saint John built this community.",
     "lngLat": [
-      -79.12640800827667,
-      44.122814018109835
+      -65.1520023545945,
+      45.663864414920255
     ],
-    "icon": "home",
+    "icon": "landmark",
+    "image": "",
     "wikipedia": "none",
-    "images": [
-      "/uploads/85158e4e-bd53-46aa-998a-7bb428e056c7.webp"
-    ]
+    "images": []
   },
   {
-    "id": "2",
-    "label": "Peggy's Cove, NS",
-    "description": "Iconic lighthouse on the rocky Atlantic coast.",
+    "id": "81d05d04-c7c0-4bc7-b00c-747d72f4903f",
+    "label": "Home",
+    "description": "This has been our home since 2020, and the starting point for our big road trip! Uxbridge is officially known as the \"Trail Capital of Canada,\" with over 200 km of trails right in our backyard.",
+    "lngLat": [
+      -79.1264,
+      44.1228
+    ],
+    "icon": "home",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "780f22b9-8fd8-4d69-ad0a-dd891a594e5a",
+    "label": "Peggy's Cove NS",
+    "description": "We had to stop here - it's iconic! We explored the tiny fishing village (population just 40!), watched waves crash onto the smooth granite rocks, and went rock-hopping along the shore. Fun fact: legend says the cove is named after \"Peggy,\" the sole survivor of a shipwreck long ago. The lighthouse has stood since 1868 and is one of the most photographed in the world - it's popular for a very good reason!",
     "lngLat": [
       -63.9189,
       44.4919
     ],
     "icon": "landmark",
-    "wikipedia": null,
-    "images": [
-      "/uploads/3742a8d2-232f-478b-a308-41de96fd99f9.webp"
-    ]
-  },
-  {
-    "id": "38d548bd-0a25-4fde-bbfa-04a44fb1c2f0",
-    "label": "Basin Head Provincial Park",
-    "description": "",
-    "lngLat": [
-      -62.10913889,
-      46.37763889
-    ],
-    "icon": "beach",
-    "wikipedia": "",
-    "images": [
-      "/uploads/7f1a4e02-ffa6-4c7d-bd56-4531cedf65c3.webp"
-    ]
-  },
-  {
-    "id": "bd14e60c-7964-41d1-9385-02346dc6a08d",
-    "label": "Mount Katahdin",
-    "description": "Mt. Katahdin is located in Maine’s Baxter State Park. It serves as the northern terminus of the Appalachian Trail.",
-    "lngLat": [
-      -68.9213381637088,
-      45.90443200455775
-    ],
-    "icon": "nature",
-    "images": [
-      "/uploads/0a4642e3-12b5-4304-9cad-3ce82169665e.webp"
-    ]
-  },
-  {
-    "id": "4c93fd22-a7e6-4085-b5f8-ab980e7f2ed8",
-    "label": "Meat Cove Campground",
-    "description": "Meat Cove Campground is a bit remote but looks like a nice place to hang out.",
-    "lngLat": [
-      -60.55894785428964,
-      47.02615663051276
-    ],
-    "icon": "tent",
-    "images": [
-      "/uploads/c9dbbce9-fce5-4a82-8ea7-e39d4dceb60f.webp"
-    ]
-  },
-  {
-    "id": "62379b14-2410-420c-aa06-322fc0bde5b4",
-    "label": "Wesley Clover Parks Campground",
-    "description": "Overnight stop on the way east",
-    "lngLat": [
-      -75.86686707825639,
-      45.331677194311396
-    ],
-    "icon": "tent",
-    "images": []
-  },
-  {
-    "id": "ac822676-9f87-455c-91fb-4e6c15dee6cb",
-    "label": "Tadoussac, QC",
-    "description": "Whale-watching spot",
-    "lngLat": [
-      -69.71671778457994,
-      48.137070213499214
-    ],
-    "icon": "nature",
-    "wikipedia": null,
-    "images": []
-  },
-  {
-    "id": "1bebbaaf-1064-4431-b163-7717d92d49b7",
-    "label": "King Neptune Campground, NS",
-    "description": "King Neptune Campground, NS",
-    "lngLat": [
-      -63.93593702013118,
-      44.51641390155322
-    ],
-    "icon": "tent",
-    "images": []
-  },
-  {
-    "id": "9beb4d4a-77eb-4d56-9cfd-cb900380279c",
-    "label": "Point Wolfe Campground",
-    "description": "Point Wolfe Campground at Fundy National Park",
-    "lngLat": [
-      -65.01647953036571,
-      45.552862795448675
-    ],
-    "icon": "tent",
-    "wikipedia": null,
-    "images": []
-  },
-  {
-    "id": "b84f1684-1e43-4008-ad34-f998b679aa8f",
-    "label": "Bike Wentworth",
-    "description": "Downhill mountain bike park",
-    "lngLat": [
-      -63.56128178053858,
-      45.60934071664528
-    ],
-    "icon": "default",
+    "image": "",
     "wikipedia": "none",
     "images": []
   },
   {
-    "id": "22b6189e-2e50-4f8f-b509-07113edccc15",
-    "label": "Bromont",
-    "description": "",
+    "id": "0e278ab5-6a3d-4be6-87f6-faf5356efc32",
+    "label": "Giant Lobster",
+    "description": "We stopped to see this giant crustacean for ourselves - and it's a bit mad! The lobster is 11 metres long and weighs a whopping 90 tonnes, took three years to build, and was unveiled in 1990. Funny twist: despite the name, it's not even the actual world's largest lobster statue - there's a bigger one in China!",
     "lngLat": [
-      -72.65,
-      45.31666667
+      -64.555,
+      46.2188
     ],
     "icon": "attraction",
-    "wikipedia": "https://en.wikipedia.org/wiki/Bromont",
+    "image": "",
+    "wikipedia": "none",
     "images": []
   },
   {
-    "id": "e14c70da-a505-4039-848d-94a13253a165",
-    "label": "Mont Tremblant",
-    "description": "",
+    "id": "f816cd80-ee5c-4d4d-96e7-68f66c93e00e",
+    "label": "Ponderosa Pines Campground",
+    "description": "We stayed here while visiting Hopewell Rocks (and yes, the laundry was great!). A fun mountain bike trail led right to the Rocks - though after my tire went flat, I ended up riding Krista's bike instead. The campground sits next to old, now-abandoned salt marsh fields that were once drained using a clever Acadian invention called an aboiteau: a wooden gate that let fresh water out at low tide but sealed shut to block the incoming salt water. With the Bay of Fundy's tides here rising up to 40 feet, that was no small feat of engineering!",
     "lngLat": [
-      -74.5528807374654,
-      46.22034722422197
+      -64.592,
+      45.817
     ],
-    "icon": "nature",
-    "wikipedia": null,
+    "icon": "tent",
+    "image": "",
+    "wikipedia": "none",
     "images": []
   },
   {
-    "id": "e2debb2a-1e2c-4de9-9d1e-e434042907f4",
-    "label": "The Bottle Houses",
-    "description": "",
+    "id": "4cb0c85f-2d4b-4d83-a050-3874d970ceaa",
+    "label": "Hopewell Rocks",
+    "description": "We visited twice to see both sides of this place - once at high tide, once at low! At low tide you can walk right along the ocean floor between the towering rock stacks; a few hours later at high tide, those same rocks become tiny islands. That's thanks to the Bay of Fundy's tides, the highest in the world at up to 16 metres (52 feet), with over 160 billion gallons of water rushing in and out twice a day! The rocks are nicknamed \"flowerpots\" because trees growing on top look like plants in a pot. Between visits we played giant Jenga and giant Connect 4, devoured excellent hot dogs and a cheeseburger, and Krista spotted a fin in the water - maybe a harbour porpoise, since the Bay of Fundy is one of their key habitats!",
     "lngLat": [
-      -64.10166667,
-      46.40222222
+      -64.5784,
+      45.8207
+    ],
+    "icon": "beach",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "be1698d7-19a9-49cf-b53b-7674507e4d1e",
+    "label": "Confederation Bridge",
+    "description": "We didn't think we'd have time to make it to PEI - but after a long day of driving, we crossed the bridge after dark. Crossing by moonlight felt exciting (and a little spooky, especially for Ivy, who wasn't a fan!). On the way back in daylight, the kids took turns sitting up front to enjoy the view. At 12.9 km, this is the world's longest bridge over ice-covered water, opened in 1997. Look closely and you'll notice the middle section is taller than the rest - that's the navigation span, built extra high (60 metres!) so big ships can sail underneath through the shipping channel.",
+    "lngLat": [
+      -63.7602,
+      46.204
     ],
     "icon": "landmark",
-    "wikipedia": null,
-    "images": [
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/Les_maisons_de_bouteilles_-_Bottle_Houses_-_The_six_gabled_house_%282%29.jpg/330px-Les_maisons_de_bouteilles_-_Bottle_Houses_-_The_six_gabled_house_%282%29.jpg"
-    ]
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "9bca42da-250d-43ab-88a5-1203bbe7631c",
+    "label": "Giant Axe",
+    "description": "We stopped here because we just had to see it for ourselves - and it's wonderfully silly! Built in 1991 to celebrate Nackawic as the \"Forestry Capital of Canada,\" the axe stands 15 metres tall, weighs over 55 tons, and has a time capsule hidden inside its head. We also discovered the town's \"Goosinator\" - a collection of predator-shaped placards that apparently do a great job of scaring off geese. For the toughest, most stubborn geese, they've even got a remote-controlled backup vehicle!",
+    "lngLat": [
+      -67.233,
+      45.9944
+    ],
+    "icon": "attraction",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "764ddea5-186d-4eb1-880d-8fadaa14183b",
+    "label": "Bottle Houses PEI",
+    "description": "Matt spotted this one and knew it would be right up Krista's alley - quirky and colourful, and it turned out to be a ton of fun (plus more giant Connect 4!). The story behind it is lovely: in 1980, retired PEI islander Edouard Arsenault was inspired by a postcard of a glass castle his daughter sent him, and at 66 years old he started building with glass bottles. Over four years he used more than 25,000 bottles to build a six-gabled house, a tavern, and a chapel - finishing just before he passed away in 1984 at age 70.",
+    "lngLat": [
+      -64.1056,
+      46.4029
+    ],
+    "icon": "attraction",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "afd56e21-97e0-4089-8fd7-1f99dc3c223c",
+    "label": "Browns Bay Beach",
+    "description": "We decided to detour along the 1000 Islands Parkway instead of taking the 401 the whole way, and randomly stopped for lunch at Browns Bay - what a find! It turned out to be a great spot for swimming (we spotted little fish darting around), and we played in the park while watching big cargo ships glide along the St. Lawrence River. In the distance we spotted a real castle on an island - that's Singer Castle on Dark Island, built in 1905 by the president of the Singer Sewing Machine Company. It's famous for its secret passageways, including a hidden door that opens when you pull a specific book off a library shelf, and a portrait that tips back so you can secretly spy on guests!",
+    "lngLat": [
+      -75.824,
+      44.4876
+    ],
+    "icon": "beach",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "129fc872-f46c-4507-bbe8-30db4b352ea3",
+    "label": "KOA South Montreal",
+    "description": "Our first and last stop of the whole road trip! This KOA has a great pool, a fun play park, and even its own mini Eiffel Tower. On the way home, dad got pulled over for going 75 in a 50 zone - no ticket in the end, but the kids were sure he was headed to jail! We also watched (from a safe distance) as a neighbouring camper drove off with their awning still out and crashed straight into some parked trailers. Oops!",
+    "lngLat": [
+      -73.4891,
+      45.346
+    ],
+    "icon": "tent",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "004bf37e-c215-4102-adcf-b03b3f33c9d8",
+    "label": "Camping Republique Edmundston",
+    "description": "An excellent campground and our first stop in New Brunswick - we liked it so much we stayed here on the way there AND back! It has the world's coldest swimming pool (brrr!) and a great mini putt course, where several of us scored a hole in one during a very competitive round. A cycling trail runs right past the entrance too. Fun fact: the campground's name nods to the \"Republic of Madawaska\" - a playful, unofficial \"country\" whose capital is Edmundston, where the mayor still holds the honorary title of President! Locals proudly call themselves Brayons.",
+    "lngLat": [
+      -68.396,
+      47.4409
+    ],
+    "icon": "tent",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "5cefa34a-dfd8-41c7-8dbe-1f1ae2dbe9d6",
+    "label": "Notre-Dame-du-Cap Basilica",
+    "description": "A random find that Matt thought might be fun - and it really was! The basilica has beautiful architecture in a gorgeous riverside setting. We arrived during Mass and got to quietly watch, which felt really special. Right next door stands the old stone chapel, built all the way back in 1720 - it's actually the oldest church in Canada where Mass is still held every single day! We got to quietly observe visitors saying their Hail Marys there too. Fun fact: this became a famous pilgrimage site after 1888, when two priests both reported seeing a statue of Mary open its eyes right in front of them - it's now known as the \"Miracle of the Eyes,\" and the shrine still draws over 400,000 visitors a year!",
+    "lngLat": [
+      -72.4975,
+      46.3681
+    ],
+    "icon": "landmark",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "51fd0a83-eff2-41e1-bbfd-aaca782f73a3",
+    "label": "Hartland Covered Bridge",
+    "description": "Lorinda had suggested this one, though she figured there was no way we'd fit the RV through it. When we spotted the highway sign, we made an in-the-moment decision to go for it anyway - parked up and walked through instead! At 391 metres, this is the world's longest covered bridge, crossing the Saint John River since 1901. Ever wonder why covered bridges have roofs? It's basically a giant raincoat - protecting the wooden beams from rain and snow can stretch a bridge's life from 20 years to over 100! Funny twist though: when Hartland's roof was added in the 1920s, some locals worried it would \"destroy the morals of young people,\" since covered bridges in New Brunswick are nicknamed \"kissing bridges\" - horse-and-carriage couples could sneak a private kiss while crossing.",
+    "lngLat": [
+      -67.5324,
+      46.2962
+    ],
+    "icon": "landmark",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "21eb1fca-64dd-4212-aaa8-b060d5f99b8a",
+    "label": "Rockwood Park Campground",
+    "description": "We picked this one for its handy location near downtown Saint John, and it turned out to be a real favourite! The campground itself was basic, but the surrounding park is huge - at 2,200 acres, it's one of the largest urban parks in Canada, with six lakes and 55 trails (it was even designed by the same person who helped design New York's Central Park!). Ivy and dad tackled a tough mountain bike ride with massive hills - dad ended up carrying Ivy's bike after she lay down for a nap right on the trail! Dad had an early morning (unplanned) swim in the lake, and we ate at a restaurant called Lily's - how perfect is that, right on Lily Lake! We also spotted deer three times.",
+    "lngLat": [
+      -66.0525,
+      45.2918
+    ],
+    "icon": "tent",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "5004d264-bd3a-40c7-8a54-101fc4d2db85",
+    "label": "Saint John City Market",
+    "description": "We found this almost by accident, and what a find! Full of restaurants and craft stalls. Dad declared it the best Reuben sandwich he's ever had. The building itself is awesome and historic - it opened in 1876 (with roots going back to a charter from 1785!), making it Canada's oldest continuously operating farmers market. Look up and you'll spot its famous roof, shaped like an upside-down ship's hull - it was built by out-of-work shipwrights using the same techniques they used to build actual ships! It even survived the huge fire of 1877 that destroyed 40% of the city.",
+    "lngLat": [
+      -66.0594,
+      45.2741
+    ],
+    "icon": "food",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "1924b397-aa4f-4f3b-9254-fa628fad8770",
+    "label": "Rainbow Park",
+    "description": "A random play-break while we were out walking around Saint John - and a great one to stumble on! This playground is specially designed to be inclusive for kids of all abilities, with double-wide pathways and adaptive equipment so everyone can join in the fun.",
+    "lngLat": [
+      -66.0556,
+      45.2672
+    ],
+    "icon": "activity",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "6d5433f1-1ddd-4372-82e7-86417b7470e3",
+    "label": "Loyalist Burial Ground",
+    "description": "A good stop for history-lover Krista - and this place has plenty of it! The burial ground was established in 1783, right after the United Empire Loyalists first landed in Saint John, with its oldest headstone dating back to 1784. As many as 12,000 people may have been buried here before it closed as a cemetery in 1848 and became a peaceful memorial garden instead, complete with tree-lined walkways and a fountain.",
+    "lngLat": [
+      -66.0564,
+      45.2747
+    ],
+    "icon": "landmark",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "0a7310d8-0419-420d-9928-ddf9bbf44699",
+    "label": "Saint John Sign",
+    "description": "Just like the Hollywood sign, but smaller and for Saint John - we had to pay it a visit! It sits high on Fort Howe hill, visible to ships all across the harbour. Right next to it stands a blockhouse - the one you see today is a 1967 replica of the original 1777 fort, which once had two blockhouses, a barracks, and eight cannons guarding the city (sadly you can't go inside though). Best bit of the stop: sitting on top of the RV and watching huge container ships get guided into dock by tugboats!",
+    "lngLat": [
+      -66.0727,
+      45.2762
+    ],
+    "icon": "attraction",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "dff8275b-b809-4eb9-9508-ffb500a7e24c",
+    "label": "West Side Docks",
+    "description": "We loved watching the huuuuuge container ships here - one being unloaded by giant cranes, and another slowly coming into view before finally docking with help from tugboats. Fun fact: Saint John's harbour never freezes, even in the depths of winter, thanks to the powerful tides of the Bay of Fundy! That keeps it busy year-round - it's actually Atlantic Canada's largest port and Canada's third-busiest by cargo volume.",
+    "lngLat": [
+      -66.0695,
+      45.2628
+    ],
+    "icon": "attraction",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "3a4d4c17-570e-4352-8320-8bcdbd752105",
+    "label": "Three Sisters Lamp",
+    "description": "This was one Krista really wanted to visit! Built in 1842 as a single oil lamp, it became three red lamps by 1849, helping sea captains navigate safely into Saint John Harbour at night - if all three lights could be seen separately, they knew they were heading straight in. No one really knows for sure why it's called the \"Three Sisters,\" but a lovely local legend says it's named after three sisters who used to wait here, watching for their husbands to return safely from sea.",
+    "lngLat": [
+      -66.0604,
+      45.2672
+    ],
+    "icon": "attraction",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "02a3dec9-f353-4c1f-b746-f59cb7df906b",
+    "label": "Lunenburg NS",
+    "description": "Krista suggested this one, and what a lovely town! Founded in 1753, Lunenburg is one of only two urban communities in North America recognized as a UNESCO World Heritage Site. Its famously colourful houses (red, yellow, blue, and green) aren't just pretty - fishermen originally painted them that way so they could spot their own house from out at sea! We loved browsing the many bookshops and found a bike shop packed with vintage road bikes.",
+    "lngLat": [
+      -64.3144,
+      44.378
+    ],
+    "icon": "landmark",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "14bd2f90-8f57-46f5-9d8f-546a1a182712",
+    "label": "Chignecto Campground",
+    "description": "We snagged a spot here for two nights - felt like a lucky find! Firewood was all-you-can-use, and there were two fun play parks where the kids made friends with some French-speaking kids. Dad took an amazing, fast downhill ride into the village (over 60 km/h on rim brakes!), though the ride back up was a real grind. There are mountain bike trails nearby too, but we didn't get to try them this time - next trip, maybe! Fun fact: \"Chignecto\" comes from a Mi'kmaq word thought to mean \"the drainage place,\" describing the wide, swampy lowlands around the bay.",
+    "lngLat": [
+      -64.9829,
+      45.606
+    ],
+    "icon": "tent",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "366f9eca-2a7c-406a-8fd1-fd0892eafb8d",
+    "label": "Dickson Falls",
+    "description": "A relaxing, wholesome hike through waterfalls and mushrooms - the most popular trail in the whole park! Wooden boardwalks and stairs wind down into a cool, shaded ravine that's like a tiny pocket of rainforest, cooler and damper than the forest above. That special microclimate is exactly why so many ferns (and mushrooms!) thrive here, right beside the 9-metre-tall Dickson Falls tumbling over mossy rocks.",
+    "lngLat": [
+      -64.9724,
+      45.5853
+    ],
+    "icon": "nature",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "1d144d66-df45-40bb-baa5-febe72bdcce9",
+    "label": "Fundy National Park Pool",
+    "description": "Right by the sea, this heated pool is filled with real seawater pumped straight from the Bay of Fundy using the natural tides, then heated for swimming - it's been doing that since 1950! We swam here twice in one day, it was that good. There's a springboard for diving, and even the lifeguards had great taste in music. Best surprise: we bumped into our Uxbridge neighbour Hailey and her family, completely by chance!",
+    "lngLat": [
+      -64.95291823898536,
+      45.590683877869566
+    ],
+    "icon": "beach",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "82f44c3a-b346-471f-a136-48ced96da06d",
+    "label": "Octopus Ice Cream St Martins",
+    "description": "This was the first village we came across on our way to the Fundy Trail - and we spotted a cute ice cream shop right in the harbour, so of course we had to stop! The tide was out, so the fishing boats sat resting on the sand and mud rather than floating - a reminder of just how big the Bay of Fundy's tides really are. Ivy and I tried to walk down to the water and got stuck in the mud! The covered bridge right by the harbour is actually New Brunswick's only two-lane covered bridge, built in 2022. There's a second, older covered bridge (built in 1946) a bit further up the same creek, so you can spot two in one visit if you know where to look!",
+    "lngLat": [
+      -65.5329,
+      45.3589
+    ],
+    "icon": "food",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "51734247-17ff-4f90-8e37-19119b3c4c41",
+    "label": "Fundy Trail Parkway",
+    "description": "A stunning, very scenic (and very hilly!) drive - but Fernando crushed it. Watching clouds roll in off the ocean and up over the cliffs was mesmerizing, and at one point we even drove right through a cloud! This 30 km parkway has more than 20 lookout points and took over two decades to build. It's part of the UNESCO Fundy Biosphere Reserve, with cliffside rock formations here dating back more than 600 million years. If we go back, we'd love to hike down to one (or more!) of the beaches along the way.",
+    "lngLat": [
+      -65.3779,
+      45.4364
+    ],
+    "icon": "nature",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "bf7a8a09-bbb6-4e0c-8f40-563716ce56c1",
+    "label": "The Blockhouse Edmundston",
+    "description": "Dad spotted this on the map, just a short ride from our campground along the rail trail - so he cycled over to check it out, and it turned out to be a total gem! We all went back together the next day for a guided tour, and even got to explore the crawlspace. The blockhouse was built in 1841 during the \"Aroostook War\" - a border dispute between New Brunswick and the state of Maine that's famous for being completely bloodless (nobody was ever hurt!). It overlooks where the Saint John and Madawaska Rivers meet, and even had a cannon that could reportedly fire across the river into what's now the US. The original was destroyed by lightning in 1855 - what you can tour today is a faithful reconstruction built in 2000.",
+    "lngLat": [
+      -68.322077,
+      47.3636152
+    ],
+    "icon": "landmark",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "fdcdc18a-a4b1-4341-b20e-fb81f47c11e9",
+    "label": "Bluenose II",
+    "description": "We got to go aboard and meet the crew - such a treat! The original Bluenose launched right here in Lunenburg in 1921 and went undefeated in international racing for 17 straight years, becoming a source of huge pride for Nova Scotia and Canada. It's so famous that it's been on the Canadian dime since 1937 - the only man-made object ever featured on a Canadian coin! This ship, Bluenose II, was built in 1963 at the very same shipyard, by many of the same workers, and has served as Nova Scotia's sailing ambassador since being gifted to the province in 1971. Under full sail, she can hit a top speed of 16 knots (about 30 km/h) - fast for a wooden ship!",
+    "lngLat": [
+      -64.30786207300996,
+      44.37527635418451
+    ],
+    "icon": "attraction",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "941525c2-b01f-4ea9-8788-9bea0d710c13",
+    "label": "Mahone Bay",
+    "description": "We spent a lovely time in Mahone Bay, famous for the pretty row of three churches you'll see in every postcard of the town! We did a spot of geocaching, explored the waterfront shops, and found the secret Faerie Trails through the back streets and gardens - over 50 tiny faerie doors and gnome homes hidden along the way! Lily and Ivy each adopted a new stuffy pet too - Snakey and Purdey the Birdy. Dad's not usually a snake fan, but he's making an exception for this one!",
+    "lngLat": [
+      -64.3801,
+      44.4499
+    ],
+    "icon": "landmark",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "7f1f6f18-7147-4a68-8c5a-63c03a67b3e8",
+    "label": "Ch\u00e9ticamp",
+    "description": "Honestly, we just passed through this charming Acadian town - though we did stop to buy some insanely expensive gas! We noticed Acadian flags everywhere here - a French tricolour with a gold star added, symbolizing Acadian identity and resilience. Ch\u00e9ticamp and this whole region have a strong, distinct Acadian culture with deep French roots, and it's also the gateway into the Cape Breton Highlands.",
+    "lngLat": [
+      -60.9972,
+      46.6175
+    ],
+    "icon": "landmark",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "380dc8b6-ef90-4fad-b742-6cd7fca27861",
+    "label": "Skyline Trail",
+    "description": "We didn't manage to do the Skyline Trail this time - it now needs a parking reservation, since it's so popular! Instead we pulled over to let Fernando's brakes cool, and watched hikers along the ridgeline through our binoculars, imagining what the views must be like. The full loop is 8.2 km, with a famous boardwalk of 275 steps that protects both the fragile clifftop plants and the hikers from the steep drops and strong winds. We'll definitely come back to do it properly one day!",
+    "lngLat": [
+      -60.9523,
+      46.7287
+    ],
+    "icon": "nature",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "1c47c6ce-a266-4317-a322-2ef6a49d6466",
+    "label": "Neil's Harbour",
+    "description": "A brief stop-off along the Cabot Trail to explore the harbour and lighthouse - and we spotted the world's least timid heron perched right on the rocks! The village is named after Neil MacLennan, a merchant who used to trade with fishermen here back in the 1700s at what became known as \"Neil's Cove.\" The lighthouse itself was built in 1899, and in a fun twist, the local volunteer fire department has been selling ice cream out of it every summer since 1999!",
+    "lngLat": [
+      -60.32167795785247,
+      46.80893208182414
+    ],
+    "icon": "landmark",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "e79dd1b0-e83e-4678-aed1-d4170fb778a7",
+    "label": "Hidden Hilltop Campground",
+    "description": "Not actually a filming location from Trailer Park Boys, but it definitely felt like it could be - skewed \"hick\" in a big way! Still, we made the most of it and had a blast on the jumping pillow and snuggling the bunnies at the petting farm.",
+    "lngLat": [
+      -63.2765,
+      45.3646
+    ],
+    "icon": "tent",
+    "image": "/uploads/cb2c8e6a-d01e-4707-afc9-5d2fe8507f14.webp",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "7d8cf6a3-17c6-4024-98c9-47b40dec26ba",
+    "label": "Broad Cove Campground",
+    "description": "We stayed here, and the beach was awesome! Ivy lost a Croc in the surf, and Daddy had to swim out to rescue it. At sunset we played in the warm river nearby - more like a lagoon really, since it gets topped up by the ocean at high tide and then warms up beautifully in the sun. We got some great photos out of it too.",
+    "lngLat": [
+      -60.3659,
+      46.7101
+    ],
+    "icon": "tent",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "91072800-d910-4291-afd0-89d0506bc12f",
+    "label": "Baddeck Cabot Trail Campground",
+    "description": "Baddeck is the traditional starting point for the Cabot Trail loop, and this lovely, traditional KOA campground with a nice pool was our base to kick things off. The kids made some new friends, and we squeezed in a game of Frisbee too!",
+    "lngLat": [
+      -60.8581,
+      46.089
+    ],
+    "icon": "tent",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "4db716a9-e5e7-4781-be36-4dcdd2d5e058",
+    "label": "Alexander Graham Bell Museum",
+    "description": "Bell's famous for inventing the telephone, but that's really just the start! At Baddeck, he worked on hydrofoil boats too - his HD-4 set a world marine speed record in 1919, zooming across Baddeck Bay at almost 115 km/h. He was also a pioneer in aviation, co-founding the Aerial Experiment Association in 1907, which built the Silver Dart, the first powered aircraft to fly in Canada. Bell was also a dedicated teacher of the deaf (his mother and wife were both deaf), and he taught a young Helen Keller, who later visited him here in Baddeck. His wife, Mabel Hubbard Bell, was remarkable in her own right - deaf from age five, she personally funded the Aerial Experiment Association and helped found Canada's first Montessori classes. A real treat for Daddy! We got in for free thanks to the Canada Strong Pass, which gave everyone free entry to Parks Canada sites that summer.",
+    "lngLat": [
+      -60.7427,
+      46.1014
+    ],
+    "icon": "landmark",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "0fca5cb9-0d59-464b-9a43-b574d57c9328",
+    "label": "Black Brook Cove Beach",
+    "description": "A nice, spontaneous find - we spotted a beach along the Cabot Trail and pulled over, and it turned out to be a great choice! Krista spotted a seal swimming out in the ocean, while Daddy and the kids had huge fun playing in some big waves.",
+    "lngLat": [
+      -60.3336,
+      46.7763
+    ],
+    "icon": "beach",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "48c1a745-16eb-4174-b545-775c075dddb4",
+    "label": "Holman's Ice Cream Parlour",
+    "description": "Another A+ Daddy-find! This beautiful century home was built in 1854 and later bought by R.T. Holman, one of PEI's most prominent businessmen back in the day - it stayed in the Holman family for over 100 years. Today it's home to both an ice cream parlour and heritage guest suites (so yes, it is a B&B too!). Daddy had the famous spaghetti sundae - vanilla ice cream \"spaghetti,\" strawberry \"meat\" sauce, and Ferrero Rocher \"meatballs\" - amaaaaazing! Krista went for a sampler of five flavours out of the 100+ on offer.",
+    "lngLat": [
+      -63.791526,
+      46.393003
+    ],
+    "icon": "food",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "0dd74df1-5d1f-4547-99ab-c62d8eb922fb",
+    "label": "Cavendish Beach",
+    "description": "A perfect day: morning at the Bottle Houses, afternoon at the beach - what a combo! We spent it swimming, building sandcastles, and burying each other in the golden sand. For some reason, the kids loved the outdoor showers most of all.",
+    "lngLat": [
+      -63.39394515706722,
+      46.49992599891368
+    ],
+    "icon": "beach",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "bcf8f9b5-8827-482a-89cf-370ec5bf8413",
+    "label": "Cavendish Boardwalk",
+    "description": "A great little shopping centre stop - the kids picked out new hoodies, and we had fish and chips for dinner.",
+    "lngLat": [
+      -63.411197,
+      46.4815062
+    ],
+    "icon": "activity",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "ed89eb22-f41c-4d47-a551-3b7928d0a9fd",
+    "label": "Grand Falls Gorge",
+    "description": "We skipped this on the way out because of bad weather, but called in on the way home instead - good call! The visitor centre had a fun exhibit with marbles that simulate how water flows through the gorge. Grand Falls is actually the largest waterfall east of Niagara, dropping 75 feet into a gorge that's 200 feet deep! The visitor centre is named after Malobiannah, a brave young Maliseet woman from local legend who is said to have led an enemy war party over the falls to save her people.",
+    "lngLat": [
+      -67.7345,
+      47.0412
+    ],
+    "icon": "nature",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "c722a636-f4e5-46b9-b81d-78c978aa7208",
+    "label": "Cafe Archibald",
+    "description": "Lucas is a coworker Daddy has worked with for four years but had never met in person - until now! We met up for brunch, and he brought along his wife and newborn son. Great company, and great crepes too.",
+    "lngLat": [
+      -64.7473062,
+      46.0941917
+    ],
+    "icon": "food",
+    "image": "/uploads/44941d42-1c1a-4e78-8f88-3d4f31fd6ca6.webp",
+    "wikipedia": "none",
+    "images": []
+  },
+  {
+    "id": "3e183e15-61f2-409e-ac97-ed20d1e10218",
+    "label": "Centre R\u00e9cr\u00e9atif PGR Observation Tower",
+    "description": "We spotted this tower as we drove by on Highway 85 on the way out, had no idea what it was, looked it up, and knew we had to stop on the way back! The 7-storey, 23-metre tower gives a stunning panoramic view over Lake T\u00e9miscouata. The climb up was a bit scary, but a little bit of scaring yourself is good for you!",
+    "lngLat": [
+      -68.8009593,
+      47.6091376
+    ],
+    "icon": "attraction",
+    "image": "",
+    "wikipedia": "none",
+    "images": []
   }
 ]
