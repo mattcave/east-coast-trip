@@ -33,9 +33,10 @@ export default function WelcomeModal({ onClose }) {
           </div>
 
           <p className="mt-2 text-sm sm:text-base text-gray-600 leading-relaxed">
-            We piled in the car and drove all the way from Ontario to Nova
-            Scotia this summer - this map is every place we stopped along
-            the way, pinned right where the memory happened.
+            We piled into our trusty motorhome, Fernando, and drove all the
+            way from Ontario to Nova Scotia this summer - this map is every
+            place we stopped along the way, pinned right where the memory
+            happened.
           </p>
 
           <ul className="mt-4 flex flex-col gap-3">
