@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Pencil, HelpCircle } from "lucide-react";
 import Map from "./Map";
 import GeoSearch from "./GeoSearch";
@@ -20,26 +20,28 @@ export default function TripMap({ initialPins, isAuthenticated }) {
   const onPickCallbackRef = useRef(null);
   const pickingPinIdRef = useRef(null);
 
-  // Show the welcome modal once per browser, on first visit only. Uses a
-  // lazy initializer (runs during the client render, not after) so it
-  // doesn't trip the "no setState in effect" lint rule and avoids an
-  // extra render pass.
+  // Show the welcome modal once per browser, on first visit only.
+  // localStorage isn't available during SSR, so this must run as an effect
+  // (after the server-rendered/hydrated markup matches) rather than in a
+  // lazy useState initializer - reading it during render would make the
+  // client's first render diverge from the server's and break hydration.
   const WELCOME_STORAGE_KEY = "east-coast-trip:welcome-dismissed";
-  const [showWelcome, setShowWelcome] = useState(() => {
-    if (typeof window === "undefined") return false;
+  const [showWelcome, setShowWelcome] = useState(false);
+  useEffect(() => {
     try {
-      return !localStorage.getItem(WELCOME_STORAGE_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: this IS the client/SSR sync effect, not a derivable render value
+      if (!localStorage.getItem(WELCOME_STORAGE_KEY)) setShowWelcome(true);
     } catch {
-      return false;
+      // localStorage unavailable (private browsing, etc.) - just skip it
     }
-  });
+  }, []);
 
   const dismissWelcome = () => {
     setShowWelcome(false);
     try {
       localStorage.setItem(WELCOME_STORAGE_KEY, "1");
     } catch {
-      // ignore — worst case the modal reappears next visit
+      // ignore - worst case the modal reappears next visit
     }
   };
 
@@ -109,19 +111,21 @@ export default function TripMap({ initialPins, isAuthenticated }) {
         </button>
       )}
 
-      {/* Help button — reopens the welcome modal on demand */}
-      {!placementMode && (
+      {/* Help button - reopens the welcome modal on demand. Top-right,
+          hidden while logged in since the Admin button takes that spot;
+          the bottom corners are taken by MapLibre's scale/attribution. */}
+      {!placementMode && !isAuthenticated && (
         <button
           onClick={() => setShowWelcome(true)}
           aria-label="About this site"
           title="About this site"
-          className="absolute bottom-4 left-4 z-10 flex items-center justify-center w-9 h-9 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-700 rounded-full shadow-md border border-gray-200 transition-colors"
+          className="absolute top-4 right-4 z-10 flex items-center justify-center w-9 h-9 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-700 rounded-full shadow-md border border-gray-200 transition-colors"
         >
           <HelpCircle size={18} />
         </button>
       )}
 
-      {/* Welcome modal — shown once for new visitors, reopenable via the help button */}
+      {/* Welcome modal - shown once for new visitors, reopenable via the help button */}
       {showWelcome && <WelcomeModal onClose={dismissWelcome} />}
 
       {/* Editor side panel — kept mounted during placement mode so form state
