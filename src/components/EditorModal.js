@@ -473,14 +473,6 @@ export default function EditorModal({ pins, onClose, onStartPlacement, onRefresh
   const [view, setView] = useState("list"); // 'list' | 'form'
   const [editingPin, setEditingPin] = useState(null);
   const scrollRef = useRef(null);
-
-  // When a popup Edit button sets an editTargetId, jump straight to that pin's form
-  useEffect(() => {
-    if (!editTargetId) return;
-    const pin = pins.find((p) => p.id === editTargetId);
-    if (pin) openEdit(pin);
-    onEditTargetConsumed?.();
-  }, [editTargetId]); // eslint-disable-line react-hooks/exhaustive-deps
   const [deletingId, setDeletingId] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const router = useRouter();
@@ -490,6 +482,26 @@ export default function EditorModal({ pins, onClose, onStartPlacement, onRefresh
   const openAdd = () => { setEditingPin(null); setView("form"); scrollToTop(); };
   const openEdit = (pin) => { setEditingPin(pin); setView("form"); scrollToTop(); onFlyTo?.(pin.lngLat); };
   const backToList = () => { setEditingPin(null); setView("list"); scrollToTop(); };
+
+  // When a popup Edit button sets an editTargetId, jump straight to that pin's form.
+  // The view switch happens during render (React's "adjust state when a prop
+  // changes" pattern) rather than in the effect, which avoids a cascading
+  // re-render. Tracking null too means editing the same pin twice still fires.
+  const [handledTargetId, setHandledTargetId] = useState(null);
+  if (editTargetId !== handledTargetId) {
+    setHandledTargetId(editTargetId);
+    const pin = editTargetId && pins.find((p) => p.id === editTargetId);
+    if (pin) { setEditingPin(pin); setView("form"); }
+  }
+
+  // Side effects outside React state stay in the effect: scroll, map fly-to,
+  // and clearing the parent's target
+  useEffect(() => {
+    if (!editTargetId) return;
+    const pin = pins.find((p) => p.id === editTargetId);
+    if (pin) { scrollToTop(); onFlyTo?.(pin.lngLat); }
+    onEditTargetConsumed?.();
+  }, [editTargetId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = async () => {
     await onRefresh();

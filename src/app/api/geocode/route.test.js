@@ -17,7 +17,7 @@ function mockFetch(features, { ok = true } = {}) {
 }
 
 beforeEach(() => {
-  vi.stubEnv("STADIA_API_KEY", "test-key");
+  vi.stubEnv("MAPBOX_TOKEN", "test-key");
 });
 
 afterEach(() => {
@@ -40,26 +40,29 @@ describe("GET /api/geocode", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it("calls Stadia autocomplete with the query text", async () => {
+  it("calls Mapbox places autocomplete with the query text, limited to the trip bbox", async () => {
     mockFetch([]);
     await GET(makeRequest("Halifax"));
     const [calledUrl] = vi.mocked(globalThis.fetch).mock.calls[0];
-    expect(calledUrl.toString()).toContain("api.stadiamaps.com/geocoding/v1/autocomplete");
-    expect(calledUrl.toString()).toContain("text=Halifax");
+    expect(calledUrl.toString()).toContain("api.mapbox.com/geocoding/v5/mapbox.places/Halifax.json");
+    expect(calledUrl.searchParams.get("autocomplete")).toBe("true");
+    expect(calledUrl.searchParams.get("bbox")).toBe("-80,40,-52,52");
   });
 
   it("includes the API key from env — never from client", async () => {
     mockFetch([]);
     await GET(makeRequest("Halifax"));
     const [calledUrl] = vi.mocked(globalThis.fetch).mock.calls[0];
-    expect(calledUrl.toString()).toContain("api_key=test-key");
+    expect(calledUrl.toString()).toContain("access_token=test-key");
   });
 
-  it("returns the features array from the upstream response", async () => {
-    const features = [{ properties: { label: "Halifax, NS" } }];
-    mockFetch(features);
+  it("normalizes Mapbox features to { geometry, properties: { id, label } }", async () => {
+    const geometry = { type: "Point", coordinates: [-63.57, 44.65] };
+    mockFetch([{ id: "place.123", place_name: "Halifax, Nova Scotia, Canada", geometry, text: "Halifax" }]);
     const res = await GET(makeRequest("Halifax"));
-    expect(await res.json()).toEqual(features);
+    expect(await res.json()).toEqual([
+      { geometry, properties: { id: "place.123", label: "Halifax, Nova Scotia, Canada" } },
+    ]);
   });
 
   it("returns [] when upstream responds with a non-OK status", async () => {
