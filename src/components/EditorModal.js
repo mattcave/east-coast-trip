@@ -50,18 +50,21 @@ function LocationSearch({ onSelect }) {
     const query = q.trim();
     // Clearing results for an empty query happens in the onChange handler
     if (!query) return;
+    // A response can land after the query has changed or been cleared; the
+    // cleanup flips this so stale results don't reopen the dropdown
+    let stale = false;
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       fetch(`/api/geocode?q=${encodeURIComponent(query)}`)
         .then((r) => (r.ok ? r.json() : []))
-        .then((data) => { setPlaceResults(data); setOpen(true); })
+        .then((data) => { if (!stale) { setPlaceResults(data); setOpen(true); } })
         .catch(() => {});
       fetch(`/api/wikipedia/search?q=${encodeURIComponent(query)}`)
         .then((r) => (r.ok ? r.json() : []))
-        .then((data) => { setWikiResults(data); setOpen(true); })
+        .then((data) => { if (!stale) { setWikiResults(data); setOpen(true); } })
         .catch(() => {});
     }, 300);
-    return () => clearTimeout(timerRef.current);
+    return () => { stale = true; clearTimeout(timerRef.current); };
   }, [q]);
 
   const select = (lngLat, prefill = {}) => {
