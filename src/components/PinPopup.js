@@ -93,16 +93,9 @@ function PhotoCarousel({ images, alt }) {
 }
 
 function WikiSection({ pin }) {
-  const [wiki, setWiki] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (pin.wikipedia === "none") return;
-
-    setLoading(true);
-    setWiki(null);
-
-    const url = pin.wikipedia
+  const url = pin.wikipedia === "none"
+    ? null
+    : pin.wikipedia
       ? `/api/wikipedia?url=${encodeURIComponent(pin.wikipedia)}`
       : (() => {
           const lat = Array.isArray(pin.lngLat) ? pin.lngLat[1] : pin.lngLat.lat;
@@ -110,11 +103,19 @@ function WikiSection({ pin }) {
           return `/api/wikipedia?lat=${lat}&lng=${lng}`;
         })();
 
+  // The result remembers which request URL it answers, so loading and stale
+  // data are derived during render rather than reset at the start of the effect
+  const [result, setResult] = useState({ url: null, data: null });
+  const loading = url !== null && result.url !== url;
+  const wiki = result.url === url ? result.data : null;
+
+  useEffect(() => {
+    if (!url) return;
     fetch(url)
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => { setWiki(data); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, [pin.id, pin.wikipedia]);
+      .then((data) => setResult({ url, data }))
+      .catch(() => setResult({ url, data: null }));
+  }, [url]);
 
   if (pin.wikipedia === "none") return null;
 

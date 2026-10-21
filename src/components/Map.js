@@ -61,9 +61,8 @@ function ClusterBadge({ count }) {
   );
 }
 
-export default function Map({ pins = [], placementMode = false, onLocationPick, onPinClick }) {
+export default function Map({ mapRef, pins = [], placementMode = false, onLocationPick, onPinClick }) {
   const containerRef = useRef(null);
-  const mapRef = useRef(null);
   const [initError, setInitError] = useState(null);
   const markersRef = useRef([]);      // MapLibre Marker instances
   const markerRootsRef = useRef([]);  // React roots rendered into each marker element
@@ -74,9 +73,6 @@ export default function Map({ pins = [], placementMode = false, onLocationPick, 
   useEffect(() => { onPinClickRef.current = onPinClick; });
   const placementModeRef = useRef(placementMode);
   useEffect(() => { placementModeRef.current = placementMode; });
-
-  // Expose mapRef so parent components can call flyTo etc.
-  Map.mapRef = mapRef;
 
   useEffect(() => {
     if (mapRef.current) return;
@@ -96,6 +92,9 @@ export default function Map({ pins = [], placementMode = false, onLocationPick, 
         minZoom: DEFAULT_ZOOM - 0.75,
       });
     } catch {
+      // MapLibre throws synchronously when WebGL is unavailable, and that's
+      // only discoverable by trying, so the fallback has to be set from here
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setInitError("The map couldn't start, possibly because WebGL is disabled or unavailable.");
       return;
     }
@@ -139,7 +138,7 @@ export default function Map({ pins = [], placementMode = false, onLocationPick, 
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, [mapRef]);
 
   // Rebuild the cluster index whenever the pins array changes. Pins that are
   // close together (or at the same coordinates) get grouped into a single
@@ -226,7 +225,7 @@ export default function Map({ pins = [], placementMode = false, onLocationPick, 
 
     map.on("moveend", renderMarkers);
     return () => map.off("moveend", renderMarkers);
-  }, [pins]);
+  }, [mapRef, pins]);
 
   // Handle placement mode: crosshair cursor, preview marker, click to pick
   useEffect(() => {
@@ -260,7 +259,7 @@ export default function Map({ pins = [], placementMode = false, onLocationPick, 
       previewMarkerRef.current?.remove();
       previewMarkerRef.current = null;
     };
-  }, [placementMode, onLocationPick]);
+  }, [mapRef, placementMode, onLocationPick]);
 
   if (initError) {
     return (

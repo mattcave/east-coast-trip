@@ -48,12 +48,8 @@ function LocationSearch({ onSelect }) {
 
   useEffect(() => {
     const query = q.trim();
-    if (!query) {
-      setPlaceResults([]);
-      setWikiResults([]);
-      setOpen(false);
-      return;
-    }
+    // Clearing results for an empty query happens in the onChange handler
+    if (!query) return;
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
       fetch(`/api/geocode?q=${encodeURIComponent(query)}`)
@@ -83,7 +79,10 @@ function LocationSearch({ onSelect }) {
       <input
         type="text"
         value={q}
-        onChange={(e) => setQ(e.target.value)}
+        onChange={(e) => {
+          setQ(e.target.value);
+          if (!e.target.value.trim()) { setPlaceResults([]); setWikiResults([]); setOpen(false); }
+        }}
         placeholder="Search places or Wikipedia…"
         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
@@ -141,7 +140,10 @@ function PinForm({ initial, onSave, onCancel, onDelete, onPickLocation, onFlyTo 
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [wikiThumb, setWikiThumb] = useState(null);
+  // Keyed by the Wikipedia URL it was fetched for, so a thumb from a previous
+  // (or cleared) URL is ignored during render instead of reset in the effect
+  const [wikiThumbResult, setWikiThumbResult] = useState({ url: null, thumb: null });
+  const wikiThumb = wikiThumbResult.url === form.wikipedia ? wikiThumbResult.thumb : null;
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -155,10 +157,10 @@ function PinForm({ initial, onSave, onCancel, onDelete, onPickLocation, onFlyTo 
   // When a Wikipedia URL is set, fetch its thumbnail to offer as a quick image option
   useEffect(() => {
     const url = form.wikipedia;
-    if (!url || url === "none") { setWikiThumb(null); return; }
+    if (!url || url === "none") return;
     fetch(`/api/wikipedia?url=${encodeURIComponent(url)}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setWikiThumb(data?.thumbnail ?? null))
+      .then((data) => setWikiThumbResult({ url, thumb: data?.thumbnail ?? null }))
       .catch(() => {});
   }, [form.wikipedia]);
 

@@ -14,6 +14,8 @@ export default function TripMap({ initialPins, isAuthenticated }) {
   const [placementMode, setPlacementMode] = useState(false);
   const [editTargetId, setEditTargetId] = useState(null);
   const [selectedPin, setSelectedPin] = useState(null);
+  // Owned here (not inside Map) so GeoSearch and the editor can call flyTo
+  const mapRef = useRef(null);
 
   // Stored callback from the form's "Pick on map" button.
   // Called with the picked lngLat when the user clicks the map.
@@ -85,6 +87,7 @@ export default function TripMap({ initialPins, isAuthenticated }) {
   return (
     <div className="relative w-full h-full">
       <Map
+        mapRef={mapRef}
         pins={pins}
         placementMode={placementMode}
         onLocationPick={handleLocationPick}
@@ -94,7 +97,7 @@ export default function TripMap({ initialPins, isAuthenticated }) {
       {/* Floating search box shown during placement mode */}
       {placementMode && (
         <GeoSearch
-          mapRef={Map.mapRef}
+          mapRef={mapRef}
           onCancel={cancelPlacement}
           onAutoPlace={handleLocationPick}
         />
@@ -137,7 +140,7 @@ export default function TripMap({ initialPins, isAuthenticated }) {
             onClose={() => setModalOpen(false)}
             onStartPlacement={startPlacement}
             onRefresh={refreshPins}
-            onFlyTo={(lngLat) => Map.mapRef.current?.flyTo({ center: lngLat, zoom: 12 })}
+            onFlyTo={(lngLat) => mapRef.current?.flyTo({ center: lngLat, zoom: 12 })}
             editTargetId={editTargetId}
             onEditTargetConsumed={() => setEditTargetId(null)}
           />
