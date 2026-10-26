@@ -15,6 +15,16 @@ function googleMapsUrl(lngLat) {
   return `https://www.google.com/maps/place/${lat},${lng}/@${lat},${lng},${zoom}z`;
 }
 
+// Keyboard shortcuts shouldn't fire while the user is typing in a field.
+function isTypingTarget(el) {
+  return el instanceof HTMLElement && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+}
+
+// Photo frame height. Grows on large screens alongside the wider desktop
+// card, but is capped at half the viewport so the text below stays visible
+// on short laptop screens.
+const FRAME_HEIGHT = "h-52 sm:h-64 lg:h-[min(440px,50vh)]";
+
 // One photo in the fixed-height frame. Uploads keep their original aspect
 // ratio, so the photo is shown whole (object-contain) over a blurred,
 // zoomed copy of itself that fills any letterbox space — a portrait shot
@@ -36,8 +46,6 @@ function PhotoCarousel({ images, alt }) {
   const [index, setIndex] = useState(0);
   const scrollerRef = useRef(null);
 
-  if (images.length === 0) return null;
-
   const scrollToIndex = (i) => {
     const scroller = scrollerRef.current;
     if (!scroller) return;
@@ -50,9 +58,34 @@ function PhotoCarousel({ images, alt }) {
     setIndex(Math.round(scroller.scrollLeft / scroller.clientWidth));
   };
 
+  // Left/right arrow keys step through the photos. The current slide is
+  // read from the scroll position rather than `index` state, so the listener
+  // doesn't need re-binding on every slide change.
+  useEffect(() => {
+    if (images.length < 2) return;
+    const onKeyDown = (e) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      if (isTypingTarget(e.target)) return;
+      const scroller = scrollerRef.current;
+      if (!scroller || scroller.clientWidth === 0) return;
+      // Captured at the window and stopped here, so MapLibre's keyboard
+      // handler doesn't also pan the map when its canvas has focus
+      e.preventDefault();
+      e.stopPropagation();
+      const current = Math.round(scroller.scrollLeft / scroller.clientWidth);
+      const next = current + (e.key === "ArrowRight" ? 1 : -1);
+      if (next < 0 || next >= images.length) return;
+      scroller.scrollTo({ left: next * scroller.clientWidth, behavior: "smooth" });
+    };
+    window.addEventListener("keydown", onKeyDown, { capture: true });
+    return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
+  }, [images.length]);
+
+  if (images.length === 0) return null;
+
   if (images.length === 1) {
     return (
-      <div className="h-52 sm:h-64">
+      <div className={FRAME_HEIGHT}>
         <Slide src={images[0]} alt={alt} />
       </div>
     );
@@ -63,7 +96,7 @@ function PhotoCarousel({ images, alt }) {
       <div
         ref={scrollerRef}
         onScroll={handleScroll}
-        className="flex h-52 sm:h-64 overflow-x-auto snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden"
+        className={`flex ${FRAME_HEIGHT} overflow-x-auto snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden`}
         style={{ scrollbarWidth: "none" }}
       >
         {images.map((src, i) => (
@@ -166,6 +199,16 @@ function WikiSection({ pin }) {
 }
 
 export default function PinPopup({ pin, onClose, onEdit }) {
+  // Escape closes the popup
+  useEffect(() => {
+    if (!pin) return;
+    const onKeyDown = (e) => {
+      if (e.key === "Escape" && !isTypingTarget(e.target)) onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [pin, onClose]);
+
   if (!pin) return null;
 
   return (
@@ -174,7 +217,7 @@ export default function PinPopup({ pin, onClose, onEdit }) {
       <div className="fixed inset-0 z-20 bg-black/30" onClick={onClose} />
 
       {/* Panel — bottom sheet on mobile, centered card on desktop */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 bg-white rounded-t-2xl shadow-2xl overflow-hidden sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:right-auto sm:w-[460px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl">
+      <div className="fixed bottom-0 left-0 right-0 z-30 bg-white rounded-t-2xl shadow-2xl overflow-hidden sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:right-auto sm:w-[460px] lg:w-[720px] sm:max-h-[90vh] sm:overflow-y-auto sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl">
         {/* Mobile drag handle */}
         <div className="flex justify-center pt-2.5 pb-1 sm:hidden">
           <div className="w-10 h-1 bg-gray-300 rounded-full" />
