@@ -15,6 +15,19 @@ function googleMapsUrl(lngLat) {
   return `https://www.google.com/maps/place/${lat},${lng}/@${lat},${lng},${zoom}z`;
 }
 
+// One photo in the fixed-height frame. Uploads keep their original aspect
+// ratio, so the photo is shown whole (object-contain) over a blurred,
+// zoomed copy of itself that fills any letterbox space — a portrait shot
+// isn't cropped, and a ~3:2 landscape shot simply covers the backdrop.
+function Slide({ src, alt, className = "" }) {
+  return (
+    <div className={`relative w-full h-full flex-shrink-0 overflow-hidden bg-gray-900 ${className}`}>
+      <img src={src} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl brightness-75" />
+      <img src={src} alt={alt} className="relative w-full h-full object-contain" />
+    </div>
+  );
+}
+
 // Swipeable/scrollable photo carousel. A single photo renders with no
 // carousel chrome (dots/arrows); multiple photos get a horizontal
 // scroll-snap strip so it works natively with touch swipe on mobile and
@@ -38,7 +51,11 @@ function PhotoCarousel({ images, alt }) {
   };
 
   if (images.length === 1) {
-    return <img src={images[0]} alt={alt} className="w-full h-52 object-cover sm:h-64" />;
+    return (
+      <div className="h-52 sm:h-64">
+        <Slide src={images[0]} alt={alt} />
+      </div>
+    );
   }
 
   return (
@@ -50,11 +67,11 @@ function PhotoCarousel({ images, alt }) {
         style={{ scrollbarWidth: "none" }}
       >
         {images.map((src, i) => (
-          <img
+          <Slide
             key={i}
             src={src}
             alt={`${alt} photo ${i + 1} of ${images.length}`}
-            className="w-full h-full object-cover flex-shrink-0 snap-center"
+            className="snap-center"
           />
         ))}
       </div>
