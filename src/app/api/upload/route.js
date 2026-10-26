@@ -6,10 +6,10 @@ const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 const MAX_INPUT_BYTES = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
-// Output dimensions are generous to support larger popup sizes in the future.
-// Sharp's "attention" strategy finds the most visually interesting region to crop to.
-const OUTPUT_WIDTH = 1200;
-const OUTPUT_HEIGHT = 800;
+// Photos keep their original aspect ratio — they're only scaled down so the
+// long edge fits this size. Cropping happens at display time (see
+// PhotoCarousel), so a portrait shot never loses pixels at upload.
+const MAX_DIMENSION = 1600;
 
 export async function POST(request) {
   const formData = await request.formData();
@@ -30,10 +30,10 @@ export async function POST(request) {
   const processed = await sharp(buffer)
     // Auto-orient based on the EXIF Orientation tag before resizing — phone
     // photos are often stored "sideways" with a tag saying how to rotate
-    // them for display, and cropping before applying that tag bakes in the
+    // them for display, and resizing before applying that tag bakes in the
     // wrong orientation.
     .rotate()
-    .resize(OUTPUT_WIDTH, OUTPUT_HEIGHT, { fit: "cover", position: "attention" })
+    .resize(MAX_DIMENSION, MAX_DIMENSION, { fit: "inside", withoutEnlargement: true })
     .webp({ quality: 85 })
     .toBuffer();
 
