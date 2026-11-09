@@ -10,11 +10,14 @@ import PinPopup from "./PinPopup";
 import TripSummary from "./TripSummary";
 import TripChooser from "./TripChooser";
 import TripSwitcher from "./TripSwitcher";
-import { tripHomeView, flyToView } from "@/lib/trips";
+import { tripHomeView, overviewHomeView, flyToView } from "@/lib/trips";
 
 // Stable empty array so a trip without pins doesn't hand Map a new array
 // (and rebuild its markers) on every render
 const NO_PINS = [];
+
+// Stands in for a trip id when tracking which view the map last flew to
+const OVERVIEW = Symbol("overview");
 
 // Trip summaries show once per trip per browser. The pre-multi-trip welcome
 // modal stored a single flag; it counts as having seen the East Coast trip.
@@ -51,8 +54,32 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   const trip = trips.find((t) => t.id === routeTripId)
     ?? trips.find((t) => t.id === defaultTripId)
     ?? trips[0];
-  const pins = pinsByTrip[trip.id] ?? NO_PINS;
-  const homeView = useMemo(() => tripHomeView(trip, pins), [trip, pins]);
+  const tripPins = pinsByTrip[trip.id] ?? NO_PINS;
+
+  // Which popup covers the map: the trip chooser, a trip summary, or neither.
+  // "/" opens the chooser on every visit, and that's known at render time,
+  // so it's in the initial state and server-rendered. Whether a trip page
+  // shows its summary depends on localStorage, which isn't available during
+  // SSR, so that has to wait for an effect - reading it during render would
+  // make the client's first render diverge from the server's and break
+  // hydration. The effect also re-runs on client-side navigation between trips.
+  const [overlay, setOverlay] = useState(isRoot ? "chooser" : null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncs with the route and localStorage, neither readable during SSR
+    setOverlay(isRoot ? "chooser" : isSummaryDismissed(trip.id) ? null : "summary");
+  }, [isRoot, trip.id]);
+
+  // While the chooser is open at "/", no trip has been picked yet, so the
+  // map shows a pin-free overview of where all the trips are rather than the
+  // default trip. Closing the chooser without picking reveals the default
+  // trip. (The chooser opened from a trip page leaves that trip showing.)
+  const showOverview = isRoot && overlay === "chooser";
+  const pins = showOverview ? NO_PINS : tripPins;
+  const homeView = useMemo(
+    () => (showOverview ? overviewHomeView(trips, pinsByTrip) : tripHomeView(trip, tripPins)),
+    [showOverview, trips, pinsByTrip, trip, tripPins]
+  );
+  const viewKey = showOverview ? OVERVIEW : trip.id;
 
   const [modalOpen, setModalOpen] = useState(false);
   const [placementMode, setPlacementMode] = useState(false);
@@ -77,29 +104,17 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
     setPlacementMode(false);
   }
 
-  // Fly to the new trip when it changes. The map already starts at the
-  // initial trip's view, so the first trip is skipped.
-  const flownTripIdRef = useRef(trip.id);
+  // Fly to the new view when the trip changes, or when the root overview
+  // opens or closes. The map already starts at the initial view, so that one
+  // is skipped.
+  const flownViewKeyRef = useRef(viewKey);
   useEffect(() => {
-    if (flownTripIdRef.current === trip.id) return;
-    flownTripIdRef.current = trip.id;
+    if (flownViewKeyRef.current === viewKey) return;
+    flownViewKeyRef.current = viewKey;
     onPickCallbackRef.current = null;
     pickingPinIdRef.current = null;
     flyToView(mapRef.current, homeView);
-  }, [trip.id, homeView]);
-
-  // Which popup covers the map: the trip chooser, a trip summary, or neither.
-  // "/" opens the chooser on every visit, and that's known at render time,
-  // so it's in the initial state and server-rendered. Whether a trip page
-  // shows its summary depends on localStorage, which isn't available during
-  // SSR, so that has to wait for an effect - reading it during render would
-  // make the client's first render diverge from the server's and break
-  // hydration. The effect also re-runs on client-side navigation between trips.
-  const [overlay, setOverlay] = useState(isRoot ? "chooser" : null);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncs with the route and localStorage, neither readable during SSR
-    setOverlay(isRoot ? "chooser" : isSummaryDismissed(trip.id) ? null : "summary");
-  }, [isRoot, trip.id]);
+  }, [viewKey, homeView]);
 
   const closeSummary = () => {
     setOverlay(null);
@@ -188,7 +203,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
       {!placementMode && (
         <TripSwitcher
           trips={trips}
-          currentTripId={trip.id}
+          currentTripId={showOverview ? null : trip.id}
           onShowAllTrips={() => setOverlay("chooser")}
         />
       )}
@@ -231,7 +246,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
       {overlay === "summary" && (
         <TripSummary
           trip={trip}
-          pinCount={pins.length}
+          pinCount={tripPins.length}
           onClose={closeSummary}
           onShowAllTrips={trips.length > 1 ? () => { closeSummary(); setOverlay("chooser"); } : null}
         />
@@ -258,7 +273,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
             pinsByTrip={pinsByTrip}
             getMapView={getMapView}
             onTripsChanged={refreshTrips}
-            pins={pins}
+            pins={tripPins}
             onClose={() => setModalOpen(false)}
             onStartPlacement={startPlacement}
             onRefresh={refreshPins}

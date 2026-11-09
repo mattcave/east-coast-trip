@@ -6,6 +6,7 @@ import {
   sanitizeTripFields,
   sortTrips,
   tripHomeView,
+  overviewHomeView,
   formatTripDates,
   tripCoverImage,
 } from "./trips.js";
@@ -103,6 +104,22 @@ describe("tripHomeView", () => {
 
   it("returns null with no view and no pins", () => {
     expect(tripHomeView({}, [])).toBeNull();
+  });
+});
+
+describe("overviewHomeView", () => {
+  it("fits all trips' pins, using a saved view centre for trips without pins", () => {
+    const trips = [
+      { id: "a", view: { center: [0, 0], zoom: 9 } },
+      { id: "b", view: { center: [50, 50], zoom: 9 } },
+      { id: "c", view: null },
+    ];
+    const pinsByTrip = { a: [{ lngLat: [-79, 44] }, { lngLat: [-63, 46] }], c: [{ lngLat: [-123, 49] }] };
+    expect(overviewHomeView(trips, pinsByTrip)).toEqual({ bounds: [[-123, 44], [50, 50]] });
+  });
+
+  it("returns null when no trip has pins or a saved view", () => {
+    expect(overviewHomeView([{ id: "a", view: null }], {})).toBeNull();
   });
 });
 

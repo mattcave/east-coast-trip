@@ -107,6 +107,19 @@ export function tripHomeView(trip, pins = []) {
   return { bounds: [[west, south], [east, north]] };
 }
 
+// The pin-free view behind the trip chooser at the site root: fits every
+// trip's pins, plus the saved view centre of any trip that has no pins yet,
+// so the backdrop hints at where the trips are without showing one of them.
+export function overviewHomeView(trips, pinsByTrip) {
+  const points = [];
+  for (const trip of trips) {
+    const pins = pinsByTrip[trip.id] ?? [];
+    if (pins.length > 0) points.push(...pins);
+    else if (trip.view) points.push({ lngLat: trip.view.center });
+  }
+  return tripHomeView(null, points);
+}
+
 // Keeps a fitted trip's edge pins clear of the floating controls: the trip
 // switcher and help/admin buttons along the top, the zoom/home controls down
 // the left side
