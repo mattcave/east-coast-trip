@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Pencil, HelpCircle } from "lucide-react";
 import Map from "./Map";
@@ -10,11 +10,16 @@ import PinPopup from "./PinPopup";
 import TripSummary from "./TripSummary";
 import TripChooser from "./TripChooser";
 import TripSwitcher from "./TripSwitcher";
-import { tripHomeView, overviewHomeView, flyToView } from "@/lib/trips";
+import { tripHomeView, overviewHomeView, flyToView, easeToPoint, setMapInset } from "@/lib/trips";
+import { sortPins } from "@/lib/pins";
 
 // Stable empty array so a trip without pins doesn't hand Map a new array
 // (and rebuild its markers) on every render
 const NO_PINS = [];
+
+// Height of the trip menu and the buttons along the top of the map (top-4
+// plus a ~36px pill, with a little breathing room)
+const TOP_CONTROLS_HEIGHT = 60;
 
 // Stands in for a trip id when tracking which view the map last flew to
 const OVERVIEW = Symbol("overview");
@@ -65,6 +70,10 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
     ?? trips.find((t) => t.id === defaultTripId)
     ?? trips[0];
   const tripPins = pinsByTrip[trip.id] ?? NO_PINS;
+  // The trip's stops in visit order, and each one's stop number. Everything
+  // that shows or steps through stops uses these, never the raw file order.
+  const stops = useMemo(() => (tripPins.length ? sortPins(tripPins) : NO_PINS), [tripPins]);
+  const stopNumbers = useMemo(() => Object.fromEntries(stops.map((p, i) => [p.id, i + 1])), [stops]);
 
   // A /trips/<id> that never existed renders the site's 404 page (the trip
   // page calls notFound()). That page renders inside this layout, so the map
@@ -93,7 +102,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   // default trip. Closing the chooser without picking reveals the default
   // trip. (The chooser opened from a trip page leaves that trip showing.)
   const showOverview = isRoot && overlay === "chooser";
-  const pins = showOverview ? NO_PINS : tripPins;
+  const pins = showOverview ? NO_PINS : stops;
   const homeView = useMemo(
     () => (showOverview ? overviewHomeView(trips, pinsByTrip) : tripHomeView(trip, tripPins)),
     [showOverview, trips, pinsByTrip, trip, tripPins]
@@ -103,9 +112,17 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   const [modalOpen, setModalOpen] = useState(false);
   const [placementMode, setPlacementMode] = useState(false);
   const [editTargetId, setEditTargetId] = useState(null);
-  const [selectedPin, setSelectedPin] = useState(null);
+  // Held as an id, not a pin object, so an edited pin shows its new details
+  // after the pins are refreshed
+  const [selectedPinId, setSelectedPinId] = useState(null);
+  const selectedIndex = selectedPinId ? stops.findIndex((p) => p.id === selectedPinId) : -1;
+  const selectedPin = selectedIndex === -1 || showOverview ? null : stops[selectedIndex];
+  const prevStop = selectedPin ? stops[selectedIndex - 1] ?? null : null;
+  const nextStop = selectedPin ? stops[selectedIndex + 1] ?? null : null;
   // Owned here (not inside Map) so GeoSearch and the editor can call flyTo
   const mapRef = useRef(null);
+  // The open stop panel, measured to keep the stop clear of it
+  const panelRef = useRef(null);
 
   // Stored callback from the form's "Pick on map" button.
   // Called with the picked lngLat when the user clicks the map.
@@ -118,10 +135,48 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   const [shownTripId, setShownTripId] = useState(trip.id);
   if (trip.id !== shownTripId) {
     setShownTripId(trip.id);
-    setSelectedPin(null);
+    setSelectedPinId(null);
     setEditTargetId(null);
     setPlacementMode(false);
   }
+
+  // When a stop opens (or the visitor steps to another), ease the map so it
+  // sits in the part of the map the panel doesn't cover: left of the docked
+  // panel on desktop, above the bottom sheet on mobile. When the panel
+  // closes, its padding is cleared without moving the map (see
+  // setMapInset). Declared before the trip fly-to effect below so that, on a
+  // trip switch, the padding is cleared before the flight starts rather
+  // than cancelling it.
+  const insetActiveRef = useRef(false);
+  const selectedLngLat = selectedPin?.lngLat;
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (!selectedPinId || !selectedLngLat) {
+      if (insetActiveRef.current) setMapInset(map);
+      insetActiveRef.current = false;
+      return;
+    }
+    const rect = panelRef.current?.getBoundingClientRect();
+    let inset = { top: 0, right: 0, bottom: 0, left: 0 };
+    if (rect) {
+      // Docked right (desktop) vs a bottom sheet (mobile). On mobile the
+      // stop goes in the strip between the trip menu and the top of the
+      // sheet. With a tall sheet on a short phone that strip can be under
+      // 100px, so the menu's space is only kept clear when there's room.
+      if (rect.left > 0) {
+        inset.right = rect.width;
+      } else {
+        inset.bottom = rect.height;
+        if (window.innerHeight - rect.height > TOP_CONTROLS_HEIGHT + 48) inset.top = TOP_CONTROLS_HEIGHT;
+      }
+    }
+    insetActiveRef.current = true;
+    easeToPoint(map, selectedLngLat, { inset });
+  // Keyed on the coordinates' values so a refresh that hands back an equal
+  // array doesn't re-ease
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPinId, selectedLngLat?.[0], selectedLngLat?.[1]]);
 
   // Fly to the new view when the trip changes, or when the root overview
   // opens or closes. The map already starts at the initial view, so that one
@@ -187,7 +242,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
     pickingPinIdRef.current = pinId;
     setPlacementMode(true);
     setModalOpen(false);
-    setSelectedPin(null);
+    setSelectedPinId(null);
   };
 
   // prefill is optional extra fields (label, wikipedia) from a Wikipedia search selection
@@ -218,6 +273,11 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
     setModalOpen(true);
   };
 
+  const closeStop = useCallback(() => setSelectedPinId(null), []);
+  const goToPrev = useCallback(() => { if (prevStop) setSelectedPinId(prevStop.id); }, [prevStop]);
+  const goToNext = useCallback(() => { if (nextStop) setSelectedPinId(nextStop.id); }, [nextStop]);
+  const getZoom = useCallback(() => mapRef.current?.getZoom(), []);
+
   if (isUnknownTrip) return null;
 
   return (
@@ -225,10 +285,15 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
       <Map
         mapRef={mapRef}
         pins={pins}
+        stopNumbers={stopNumbers}
+        selectedPinId={selectedPin?.id ?? null}
         homeView={homeView}
         placementMode={placementMode}
         onLocationPick={handleLocationPick}
-        onPinClick={(pin) => setSelectedPin(pin)}
+        onPinClick={(pin) => setSelectedPinId(pin.id)}
+        // Clicking the open map closes the stop panel (desktop has no
+        // backdrop to click)
+        onMapClick={closeStop}
       />
 
       {!placementMode && (
@@ -251,7 +316,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
       {/* Admin button — top-right, aligned with the panel it opens */}
       {isAuthenticated && !placementMode && (
         <button
-          onClick={() => setModalOpen(true)}
+          onClick={() => { setSelectedPinId(null); setModalOpen(true); }}
           className="absolute top-4 right-4 z-10 flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium px-3 py-2 rounded-lg shadow-md border border-gray-200 transition-colors"
         >
           <Pencil size={14} />
@@ -305,7 +370,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
             pinsByTrip={pinsByTrip}
             getMapView={getMapView}
             onTripsChanged={refreshTrips}
-            pins={tripPins}
+            pins={stops}
             onClose={() => setModalOpen(false)}
             onStartPlacement={startPlacement}
             onRefresh={refreshPins}
@@ -316,13 +381,20 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
         </div>
       )}
 
-      {/* Pin detail popup — bottom sheet on mobile, card on desktop */}
+      {/* Stop detail — bottom sheet on mobile, right-hand panel on desktop */}
       {selectedPin && (
         <PinPopup
           pin={selectedPin}
-          onClose={() => setSelectedPin(null)}
+          prev={prevStop}
+          next={nextStop}
+          onPrev={goToPrev}
+          onNext={goToNext}
+          onClose={closeStop}
+          getZoom={getZoom}
+          panelRef={panelRef}
+          keyboardEnabled={!modalOpen && !placementMode}
           onEdit={isAuthenticated ? (id) => {
-            setSelectedPin(null);
+            setSelectedPinId(null);
             setEditTargetId(id);
             setModalOpen(true);
           } : null}

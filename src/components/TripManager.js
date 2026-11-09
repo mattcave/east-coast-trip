@@ -97,9 +97,14 @@ function TripForm({ initial, isDefault, getMapView, onSaved, onCancel }) {
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">Starting map view</label>
+        <label className="block text-xs font-medium text-gray-600 mb-1">Map view before the first pin</label>
         <p className="text-sm text-gray-500 mb-2">
-          {form.view ? `Saved view (zoom ${form.view.zoom})` : "Fits all of the trip's pins"}
+          {form.view ? `Saved view (zoom ${form.view.zoom})` : "None saved"}
+        </p>
+        {/* tripHomeView always fits the pins once a trip has any, so a
+            saved view only matters for an empty trip */}
+        <p className="text-xs text-gray-400 mb-2">
+          Once the trip has pins, the map always fits them to the screen. This view is only used until then.
         </p>
         <div className="flex gap-2">
           <button
@@ -115,7 +120,7 @@ function TripForm({ initial, isDefault, getMapView, onSaved, onCancel }) {
               onClick={() => set("view", null)}
               className="flex-1 text-xs font-medium text-gray-600 hover:text-gray-800 border border-gray-200 hover:border-gray-300 rounded-lg py-1.5 transition-colors"
             >
-              Fit pins instead
+              Clear saved view
             </button>
           )}
         </div>

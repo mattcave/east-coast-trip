@@ -10,6 +10,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Locally installed agent skills and settings, not app code. Their
+    // bundled asset scripts trip react-hooks rules (e.g. a non-hook named
+    // useFallback) and would fail `npm run lint`.
+    ".agents/**",
+    ".claude/**",
   ]),
 ]);
 

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { isValidToken } from "@/lib/auth";
 
-const WRITE_METHODS = new Set(["POST", "PATCH", "DELETE"]);
+// Anything that isn't a read needs a session. Listing the safe methods
+// (rather than the write ones) means a new verb like PUT is protected by
+// default instead of slipping through.
+const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 export async function proxy(request) {
   const { pathname } = request.nextUrl;
@@ -18,7 +21,7 @@ export async function proxy(request) {
   // Protect write operations on /api/* — return 401 if no valid session.
   // /api/login and /api/logout are explicitly excluded — both must remain public.
   const PUBLIC_API = new Set(["/api/login", "/api/logout"]);
-  if (pathname.startsWith("/api") && !PUBLIC_API.has(pathname) && WRITE_METHODS.has(method)) {
+  if (pathname.startsWith("/api") && !PUBLIC_API.has(pathname) && !READ_METHODS.has(method)) {
     if (!await isValidToken(token)) {
       return new NextResponse(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
     }

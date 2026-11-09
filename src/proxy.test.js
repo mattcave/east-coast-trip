@@ -73,6 +73,16 @@ describe("protected API write routes", () => {
     expect(response.status).toBe(401);
   });
 
+  it("blocks PUT /api/trips/t/pins/order without a cookie", async () => {
+    const response = await proxy(await makeRequest("/api/trips/t/pins/order", { method: "PUT" }));
+    expect(response.status).toBe(401);
+  });
+
+  it("allows PUT /api/trips/t/pins/order with a valid cookie", async () => {
+    const response = await proxy(await makeRequest("/api/trips/t/pins/order", { method: "PUT", token: await generateToken() }));
+    expect(response.status).not.toBe(401);
+  });
+
   it("allows POST /api/trips/t/pins with a valid cookie", async () => {
     const response = await proxy(await makeRequest("/api/trips/t/pins", { method: "POST", token: await generateToken() }));
     expect(response.status).not.toBe(401);

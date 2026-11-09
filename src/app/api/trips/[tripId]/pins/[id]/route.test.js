@@ -131,3 +131,25 @@ describe("DELETE /api/trips/[tripId]/pins/[id]", () => {
     expect(await exists(imagePath)).toBe(false);
   });
 });
+
+describe("PATCH stop order and date", () => {
+  it("ignores order, so a stale editor form can't undo a reorder", async () => {
+    await data.cleanup();
+    data = await setupTempData({ pins: { [TEST_TRIP.id]: [{ ...SAMPLE_PINS[0], order: 2 }, { ...SAMPLE_PINS[1], order: 1 }] } });
+
+    await PATCH(patchRequest("1", { label: "Home!", order: 1 }), makeParams("1"));
+    const pins = await readPins(TEST_TRIP.id);
+    expect(pins[0]).toMatchObject({ label: "Home!", order: 2 });
+  });
+
+  it("sets, clears and validates the date", async () => {
+    await PATCH(patchRequest("1", { date: "2026-07-14" }), makeParams("1"));
+    expect((await readPins(TEST_TRIP.id))[0].date).toBe("2026-07-14");
+
+    await PATCH(patchRequest("1", { date: "" }), makeParams("1"));
+    expect((await readPins(TEST_TRIP.id))[0].date).toBeNull();
+
+    const bad = await PATCH(patchRequest("1", { date: "tomorrow" }), makeParams("1"));
+    expect(bad.status).toBe(400);
+  });
+});

@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { X, Plus, Pencil, Trash2, MapPin, LogOut } from "lucide-react";
+import { X, Plus, Pencil, Trash2, MapPin, LogOut, ChevronUp, ChevronDown } from "lucide-react";
 import { PIN_ICONS } from "@/lib/icons";
 import TripManager from "./TripManager";
+import { moveItem } from "@/lib/pins";
 
 const EMPTY_FORM = {
   label: "",
@@ -12,10 +13,40 @@ const EMPTY_FORM = {
   icon: "default",
   lngLat: null,
   wikipedia: null, // null = auto-detect, "none" = disabled, URL string = specific article
+  date: null, // optional YYYY-MM-DD, shown to visitors; never affects stop order
 };
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const MAX_BYTES = 10 * 1024 * 1024;
+
+// A pin's stop number in the admin list, editable to move the pin straight
+// to another position (quicker than many up/down clicks across 40+ stops).
+// Commits on Enter or blur; anything that isn't a number puts it back.
+function StopNumberInput({ number, max, label, disabled, onCommit }) {
+  const [draft, setDraft] = useState(null);
+  const commit = () => {
+    const n = Number.parseInt(draft, 10);
+    setDraft(null);
+    if (Number.isInteger(n) && n !== number) onCommit(Math.max(1, Math.min(max, n)));
+  };
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={draft ?? String(number)}
+      disabled={disabled}
+      aria-label={`Stop number for ${label}`}
+      onFocus={(e) => e.target.select()}
+      onChange={(e) => setDraft(e.target.value.replace(/\D/g, ""))}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        if (e.key === "Escape") { setDraft(null); e.stopPropagation(); }
+      }}
+      className="w-9 flex-shrink-0 rounded border border-gray-200 px-1 py-0.5 text-center text-xs font-semibold text-gray-600 tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+    />
+  );
+}
 
 function IconPicker({ value, onChange }) {
   return (
@@ -316,6 +347,18 @@ function PinForm({ tripId, initial, onSave, onCancel, onDelete, onPickLocation, 
       </div>
 
       <div>
+        <label htmlFor="pin-date" className="block text-xs font-medium text-gray-600 mb-1">Date visited</label>
+        <input
+          id="pin-date"
+          type="date"
+          value={form.date ?? ""}
+          onChange={(e) => set("date", e.target.value || null)}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <p className="mt-1 text-xs text-gray-400">Optional. Shown to visitors; the stop order is set in the pin list.</p>
+      </div>
+
+      <div>
         <label className="block text-xs font-medium text-gray-600 mb-1.5">Icon</label>
         <IconPicker value={form.icon} onChange={(v) => set("icon", v)} />
       </div>
@@ -490,6 +533,34 @@ export default function EditorModal({
   const [deleting, setDeleting] = useState(false);
   const router = useRouter();
 
+  // Ids in the order just saved, shown until the refreshed pins arrive so
+  // the list doesn't jump back while the request is in flight
+  const [pendingOrder, setPendingOrder] = useState(null);
+  const [orderError, setOrderError] = useState(null);
+  const listedPins = pendingOrder
+    ? pendingOrder.map((id) => pins.find((p) => p.id === id)).filter(Boolean)
+    : pins;
+
+  // Saves the whole order in one request; see PUT .../pins/order
+  const saveOrder = async (ids) => {
+    setPendingOrder(ids);
+    setOrderError(null);
+    const res = await fetch(`/api/trips/${trip.id}/pins/order`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }).catch(() => null);
+    if (!res?.ok) setOrderError("Couldn't save the new order. Please try again.");
+    await onRefresh();
+    setPendingOrder(null);
+  };
+
+  const moveStop = (from, to) => {
+    const ids = listedPins.map((p) => p.id);
+    const next = moveItem(ids, from, to);
+    if (next !== ids) saveOrder(next);
+  };
+
   const scrollToTop = () => { if (scrollRef.current) scrollRef.current.scrollTop = 0; };
 
   const openAdd = () => { setEditingPin(null); setView("form"); scrollToTop(); };
@@ -571,7 +642,7 @@ export default function EditorModal({
           <button onClick={logout} title="Sign out" className="text-gray-400 hover:text-gray-600 p-1">
             <LogOut size={16} />
           </button>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
+          <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600 p-1">
             <X size={18} />
           </button>
         </div>
@@ -602,15 +673,47 @@ export default function EditorModal({
               <Plus size={16} /> Add new pin
             </button>
 
+            {orderError && <p className="mb-2 text-xs text-red-600">{orderError}</p>}
+            {pins.length > 1 && (
+              <p className="mb-2 text-xs text-gray-400">Listed in stop order. Use the arrows, or type a new stop number.</p>
+            )}
+
             <div className="flex flex-col gap-2">
-              {pins.map((pin) => {
+              {listedPins.map((pin, i) => {
                 const { icon: Icon, color } = PIN_ICONS[pin.icon] ?? PIN_ICONS.default;
                 return (
-                  <div key={pin.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:border-gray-200">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: color }}>
-                      <Icon size={14} color="white" />
+                  <div key={pin.id} className="flex items-center gap-2 p-2 rounded-lg border border-gray-100 hover:border-gray-200">
+                    <StopNumberInput
+                      number={i + 1}
+                      max={listedPins.length}
+                      label={pin.label}
+                      disabled={pendingOrder !== null}
+                      onCommit={(n) => moveStop(i, n - 1)}
+                    />
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: color }}>
+                      <Icon size={12} color="white" />
                     </div>
-                    <span className="flex-1 text-sm font-medium text-gray-800 truncate">{pin.label}</span>
+                    <span className="min-w-0 flex-1 text-sm font-medium text-gray-800 truncate">{pin.label}</span>
+                    <div className="flex flex-col flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => moveStop(i, i - 1)}
+                        disabled={i === 0 || pendingOrder !== null}
+                        aria-label={`Move ${pin.label} earlier`}
+                        className="text-gray-400 hover:text-gray-700 disabled:opacity-30 leading-none"
+                      >
+                        <ChevronUp size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveStop(i, i + 1)}
+                        disabled={i === listedPins.length - 1 || pendingOrder !== null}
+                        aria-label={`Move ${pin.label} later`}
+                        className="text-gray-400 hover:text-gray-700 disabled:opacity-30 leading-none"
+                      >
+                        <ChevronDown size={14} />
+                      </button>
+                    </div>
 
                     {deletingId === pin.id ? (
                       <div className="flex items-center gap-1.5">
@@ -633,12 +736,14 @@ export default function EditorModal({
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => openEdit(pin)}
+                          aria-label={`Edit ${pin.label}`}
                           className="p-1.5 text-gray-400 hover:text-blue-600 rounded transition-colors"
                         >
                           <Pencil size={14} />
                         </button>
                         <button
                           onClick={() => setDeletingId(pin.id)}
+                          aria-label={`Delete ${pin.label}`}
                           className="p-1.5 text-gray-400 hover:text-red-600 rounded transition-colors"
                         >
                           <Trash2 size={14} />

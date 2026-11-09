@@ -88,14 +88,17 @@ export function sortTrips(trips) {
   });
 }
 
-// The view the map flies to for a trip: an explicit view set in the admin
-// panel wins, otherwise fit all of the trip's pins. Returns
-// { center, zoom }, { bounds }, or null for a trip with no view and no pins.
+// The view the map flies to for a trip: fit all of the trip's pins, so every
+// stop is on screen whatever the screen size. A fixed center and zoom saved
+// in the admin panel only suits the screen it was saved on (on a phone the
+// East Coast trip's saved view missed most of Nova Scotia), so it's only
+// used for a trip with no pins yet. Returns { center, zoom }, { bounds }, or
+// null for a trip with no pins and no saved view.
 export function tripHomeView(trip, pins = []) {
-  if (trip?.view) return { center: trip.view.center, zoom: trip.view.zoom };
-
   const coords = pins.map((p) => p.lngLat).filter((c) => Array.isArray(c) && c.length === 2);
-  if (coords.length === 0) return null;
+  if (coords.length === 0) {
+    return trip?.view ? { center: trip.view.center, zoom: trip.view.zoom } : null;
+  }
 
   const lngs = coords.map((c) => c[0]);
   const lats = coords.map((c) => c[1]);
@@ -125,10 +128,53 @@ export function overviewHomeView(trips, pinsByTrip) {
 // the left side
 const FIT_OPTIONS = { padding: { top: 80, bottom: 48, left: 72, right: 56 }, maxZoom: 12 };
 
+// Visitors who ask the OS for less motion get instant jumps instead of
+// flights and eases. Read at call time, so changing the setting applies
+// without a reload.
+export function prefersReducedMotion() {
+  return typeof window !== "undefined"
+    && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+}
+
+// Every camera move in the app goes through flyToView or easeToPoint, so
+// reduced motion is handled in one place.
 export function flyToView(map, view) {
   if (!map || !view) return;
-  if (view.bounds) map.fitBounds(view.bounds, FIT_OPTIONS);
-  else map.flyTo({ center: view.center, zoom: view.zoom });
+  const animate = !prefersReducedMotion();
+  if (view.bounds) map.fitBounds(view.bounds, { ...FIT_OPTIONS, animate });
+  else if (animate) map.flyTo({ center: view.center, zoom: view.zoom });
+  else map.jumpTo({ center: view.center, zoom: view.zoom });
+}
+
+// Centres a point in the part of the map that isn't covered by a panel.
+// `inset` is the map padding ({ top, right, bottom, left }) for the panel;
+// omit it to keep the current padding. `zoom` is optional.
+export function easeToPoint(map, lngLat, { inset, zoom } = {}) {
+  if (!map || !lngLat) return;
+  const options = { center: lngLat };
+  if (inset) options.padding = inset;
+  if (zoom !== undefined) options.zoom = zoom;
+  if (prefersReducedMotion()) map.jumpTo(options);
+  else map.easeTo(options);
+}
+
+const NO_INSET = { top: 0, right: 0, bottom: 0, left: 0 };
+
+// Changes the map's padding without visibly moving the map. MapLibre keeps
+// padding passed to easeTo/flyTo and adds it to every later fitBounds, so
+// once a panel closes its padding has to be cleared, or the Home button and
+// trip switches would keep fitting into the left of the screen. Clearing it
+// with a plain setPadding would also shift the picture sideways by half the
+// panel width; picking the new centre from what's on screen avoids that.
+export function setMapInset(map, inset = NO_INSET) {
+  if (!map) return;
+  const next = { ...NO_INSET, ...inset };
+  const canvas = map.getCanvas();
+  const width = canvas.clientWidth;
+  const height = canvas.clientHeight;
+  const x = next.left + (width - next.left - next.right) / 2;
+  const y = next.top + (height - next.top - next.bottom) / 2;
+  map.jumpTo({ center: map.unproject([x, y]), padding: next });
 }
 
 // MapLibre constructor options for starting at a view. With no view (a new

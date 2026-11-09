@@ -1,8 +1,16 @@
 import { mutatePins } from "@/lib/store";
+import { sanitizePinDate } from "@/lib/pins";
 
 export async function PATCH(request, { params }) {
   const { tripId, id } = await params;
-  const updates = await request.json();
+  // `order` is dropped: the pin editor sends the whole pin back, including
+  // the order it had when the form opened, which would undo any reordering
+  // done since. Order only changes through PUT .../pins/order.
+  const { order: _order, ...updates } = await request.json();
+
+  const { date, error } = sanitizePinDate(updates);
+  if (error) return Response.json({ error }, { status: 400 });
+  if (date !== undefined) updates.date = date;
 
   const result = await mutatePins(tripId, (pins) => {
     const index = pins.findIndex((p) => p.id === id);

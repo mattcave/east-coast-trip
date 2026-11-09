@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   isValidTripId,
   slugify,
@@ -9,6 +9,9 @@ import {
   overviewHomeView,
   formatTripDates,
   tripCoverImage,
+  flyToView,
+  easeToPoint,
+  setMapInset,
 } from "./trips.js";
 
 describe("isValidTripId", () => {
@@ -90,12 +93,17 @@ describe("sortTrips", () => {
 describe("tripHomeView", () => {
   const pins = [{ lngLat: [-79, 44] }, { lngLat: [-63, 46] }, { lngLat: [-70, 43] }];
 
-  it("prefers the trip's saved view", () => {
-    expect(tripHomeView({ view: { center: [1, 2], zoom: 7 } }, pins)).toEqual({ center: [1, 2], zoom: 7 });
+  it("fits the pins, even when the trip has a saved view", () => {
+    expect(tripHomeView({ view: { center: [1, 2], zoom: 7 } }, pins)).toEqual({ bounds: [[-79, 43], [-63, 46]] });
+    expect(tripHomeView({ view: null }, pins)).toEqual({ bounds: [[-79, 43], [-63, 46]] });
   });
 
-  it("fits the pins otherwise", () => {
-    expect(tripHomeView({ view: null }, pins)).toEqual({ bounds: [[-79, 43], [-63, 46]] });
+  it("uses the saved view for a trip with no pins", () => {
+    expect(tripHomeView({ view: { center: [1, 2], zoom: 7 } }, [])).toEqual({ center: [1, 2], zoom: 7 });
+  });
+
+  it("ignores pins without usable coordinates", () => {
+    expect(tripHomeView({ view: { center: [1, 2], zoom: 7 } }, [{ lngLat: null }])).toEqual({ center: [1, 2], zoom: 7 });
   });
 
   it("centres on a lone pin instead of fitting zero-size bounds", () => {
@@ -143,5 +151,72 @@ describe("tripCoverImage", () => {
 
   it("returns null when no pin has a photo", () => {
     expect(tripCoverImage([{ images: [] }])).toBeNull();
+  });
+});
+
+// Records camera calls instead of moving a real map
+function fakeMap({ width = 1000, height = 600 } = {}) {
+  return {
+    calls: [],
+    fitBounds(...args) { this.calls.push(["fitBounds", ...args]); },
+    flyTo(...args) { this.calls.push(["flyTo", ...args]); },
+    easeTo(...args) { this.calls.push(["easeTo", ...args]); },
+    jumpTo(...args) { this.calls.push(["jumpTo", ...args]); },
+    getCanvas: () => ({ clientWidth: width, clientHeight: height }),
+    // Pixel coordinates stand in for lng/lat so the maths is easy to check
+    unproject: ([x, y]) => ({ x, y }),
+  };
+}
+
+function stubReducedMotion(reduce) {
+  vi.stubGlobal("window", { matchMedia: () => ({ matches: reduce }) });
+}
+
+describe("camera helpers", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("fits bounds with padding, animated by default", () => {
+    stubReducedMotion(false);
+    const map = fakeMap();
+    flyToView(map, { bounds: [[0, 0], [1, 1]] });
+    const [name, bounds, options] = map.calls[0];
+    expect(name).toBe("fitBounds");
+    expect(bounds).toEqual([[0, 0], [1, 1]]);
+    expect(options).toMatchObject({ animate: true, maxZoom: 12 });
+    expect(options.padding.top).toBeGreaterThan(0);
+  });
+
+  it("jumps instead of flying when reduced motion is on", () => {
+    stubReducedMotion(true);
+    const map = fakeMap();
+    flyToView(map, { center: [1, 2], zoom: 5 });
+    flyToView(map, { bounds: [[0, 0], [1, 1]] });
+    easeToPoint(map, [3, 4]);
+    expect(map.calls.map((c) => c[0])).toEqual(["jumpTo", "fitBounds", "jumpTo"]);
+    expect(map.calls[1][2].animate).toBe(false);
+  });
+
+  it("eases to a point with an optional inset and zoom", () => {
+    stubReducedMotion(false);
+    const map = fakeMap();
+    easeToPoint(map, [3, 4], { inset: { right: 400 }, zoom: 9 });
+    expect(map.calls[0]).toEqual(["easeTo", { center: [3, 4], padding: { right: 400 }, zoom: 9 }]);
+  });
+
+  it("does nothing without a map or target", () => {
+    expect(() => flyToView(null, { center: [0, 0], zoom: 1 })).not.toThrow();
+    expect(() => easeToPoint(fakeMap(), null)).not.toThrow();
+  });
+
+  it("clears the inset while keeping the same spot in the middle of the screen", () => {
+    const map = fakeMap({ width: 1000, height: 600 });
+    setMapInset(map);
+    expect(map.calls[0]).toEqual(["jumpTo", { center: { x: 500, y: 300 }, padding: { top: 0, right: 0, bottom: 0, left: 0 } }]);
+  });
+
+  it("sets an inset, picking the centre of the uncovered area", () => {
+    const map = fakeMap({ width: 1000, height: 600 });
+    setMapInset(map, { right: 400 });
+    expect(map.calls[0][1].center).toEqual({ x: 300, y: 300 });
   });
 });

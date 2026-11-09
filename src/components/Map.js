@@ -8,32 +8,76 @@ import Supercluster from "supercluster";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { PIN_ICONS } from "@/lib/icons";
 import { flyToView, initialMapOptions } from "@/lib/trips";
+import ClusterList from "./ClusterList";
 
 // Trips can be anywhere, so the map only stops short of the whole-world view
 // (where pins and clusters stop meaning much)
 const MIN_ZOOM = 2;
 
 // Pixel radius (at the current zoom) within which pins are grouped into a
-// cluster, and the zoom past which they always render individually.
-const CLUSTER_RADIUS = 40;
+// cluster, and the zoom past which they always render individually. 28 is
+// about one marker's width with a little overlap allowed; the old 40 hid 39
+// of the East Coast trip's 44 stops in clusters at its opening view.
+const CLUSTER_RADIUS = 28;
 const CLUSTER_MAX_ZOOM = 16;
 
-function MarkerPin({ icon }) {
+// Clusters this small open a list of their stops instead of zooming in,
+// since zooming often took two or three clicks to separate them
+const CLUSTER_LIST_MAX = 6;
+
+const ROUTE_SOURCE = "trip-route";
+const ROUTE_LAYER = "trip-route-line";
+const EMPTY_ROUTE = { type: "FeatureCollection", features: [] };
+
+// Shared by every marker <button>. Tailwind's preflight already strips the
+// button chrome; this adds a visible keyboard focus ring.
+const MARKER_BUTTON_CLASS = "block rounded-full cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
+
+function MarkerPin({ icon, number, selected }) {
   const { icon: Icon, color } = PIN_ICONS[icon] ?? PIN_ICONS.default;
   return (
-    <div style={{
-      background: color,
-      borderRadius: "50%",
-      width: 36,
-      height: 36,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      border: "2px solid white",
-      boxShadow: "0 2px 6px rgba(0,0,0,0.35)",
-      cursor: "pointer",
-    }}>
+    <div
+      style={{
+        position: "relative",
+        background: color,
+        borderRadius: "50%",
+        width: 36,
+        height: 36,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        border: "2px solid white",
+        boxShadow: selected ? "0 0 0 3px rgba(37,99,235,0.6), 0 3px 10px rgba(0,0,0,0.45)" : "0 2px 6px rgba(0,0,0,0.35)",
+        // Scaled here rather than on the marker element, whose transform
+        // MapLibre owns for positioning
+        transform: selected ? "scale(1.25)" : undefined,
+        transition: "transform 150ms ease-out",
+      }}
+    >
       <Icon size={18} color="white" />
+      {number != null && (
+        <span
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            top: -6,
+            right: -8,
+            minWidth: 18,
+            height: 18,
+            padding: "0 4px",
+            borderRadius: 9,
+            background: "#1f2937",
+            color: "white",
+            border: "1.5px solid white",
+            fontSize: 10,
+            fontWeight: 700,
+            lineHeight: "15px",
+            textAlign: "center",
+          }}
+        >
+          {number}
+        </span>
+      )}
     </div>
   );
 }
@@ -53,7 +97,6 @@ function ClusterBadge({ count }) {
       justifyContent: "center",
       border: "2px solid white",
       boxShadow: "0 2px 6px rgba(0,0,0,0.35)",
-      cursor: "pointer",
       fontSize: 13,
       fontWeight: 600,
     }}>
@@ -62,19 +105,63 @@ function ClusterBadge({ count }) {
   );
 }
 
+function pinAriaLabel(pin, number) {
+  const category = (PIN_ICONS[pin.icon] ?? PIN_ICONS.default).label;
+  return number != null ? `Stop ${number}: ${pin.label}, ${category}` : `${pin.label}, ${category}`;
+}
+
+// Draws the stops in order as one line. Added under every other layer's
+// labels would hide it under roads at some zooms, so it goes on top of the
+// basemap; the DOM markers always sit above the canvas anyway.
+function syncRoute(map, routeCoords) {
+  const data = routeCoords.length >= 2
+    ? { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: routeCoords } }
+    : EMPTY_ROUTE;
+  const source = map.getSource(ROUTE_SOURCE);
+  if (source) {
+    source.setData(data);
+    return;
+  }
+  map.addSource(ROUTE_SOURCE, { type: "geojson", data });
+  map.addLayer({
+    id: ROUTE_LAYER,
+    type: "line",
+    source: ROUTE_SOURCE,
+    layout: { "line-join": "round", "line-cap": "round" },
+    // Placeholder styling in the app's existing blue; the visual redesign
+    // will restyle it
+    paint: { "line-color": "#2563eb", "line-width": 3, "line-opacity": 0.65 },
+  });
+}
+
 // homeView is the current trip's view (see tripHomeView): where the map
 // starts, and where the Home button returns to. Moving the map when the trip
 // changes is up to the parent, since only it knows a switch happened.
-export default function Map({ mapRef, pins = [], homeView = null, placementMode = false, onLocationPick, onPinClick }) {
+//
+// pins arrive in stop order; stopNumbers maps pin id -> stop number (kept
+// separate so a filtered list doesn't renumber). The selected pin is always
+// drawn on its own, highlighted, never inside a cluster, so stepping
+// through stops can't land on one hidden in a bubble.
+export default function Map({
+  mapRef, pins = [], stopNumbers = null, selectedPinId = null, homeView = null,
+  placementMode = false, onLocationPick, onPinClick, onMapClick,
+}) {
   const containerRef = useRef(null);
   const [initError, setInitError] = useState(null);
-  const markersRef = useRef([]);      // MapLibre Marker instances
-  const markerRootsRef = useRef([]);  // React roots rendered into each marker element
-  const clusterIndexRef = useRef(null);
-  const previewMarkerRef = useRef(null);
+  const [styleReady, setStyleReady] = useState(false);
+  // Small cluster's stop list: { pins, x, y } in container pixels, or null
+  const [clusterList, setClusterList] = useState(null);
+  // key ("pin:<id>" / "cluster:<id>") -> { marker, root, el, signature }
+  const markersRef = useRef(new globalThis.Map());
+  // The current cluster index and pin lookup. Markers outlive the effect run
+  // that created them, so their click handlers read these at click time
+  // rather than closing over a stale index (cluster ids from an old index
+  // can name a different cluster in the new one).
+  const clusterStateRef = useRef({ index: null, pins: [], pinsById: new globalThis.Map() });
   // Refs so marker clicks always call the latest callbacks without re-creating markers
   const onPinClickRef = useRef(onPinClick);
-  useEffect(() => { onPinClickRef.current = onPinClick; });
+  const onMapClickRef = useRef(onMapClick);
+  useEffect(() => { onPinClickRef.current = onPinClick; onMapClickRef.current = onMapClick; });
   const placementModeRef = useRef(placementMode);
   useEffect(() => { placementModeRef.current = placementMode; });
   const homeViewRef = useRef(homeView);
@@ -112,8 +199,9 @@ export default function Map({ mapRef, pins = [], homeView = null, placementMode 
     const homeBtn = document.createElement("button");
     homeBtn.className = "maplibregl-ctrl-icon";
     homeBtn.title = "Reset view";
+    homeBtn.setAttribute("aria-label", "Reset view");
     homeBtn.style.cssText = "display:flex; align-items:center; justify-content:center;";
-    homeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>`;
+    homeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>`;
     homeBtn.addEventListener("click", () => {
       flyToView(map, homeViewRef.current);
     });
@@ -131,108 +219,193 @@ export default function Map({ mapRef, pins = [], homeView = null, placementMode 
       map.addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
     });
 
+    map.once("load", () => setStyleReady(true));
+
+    // Marker <button>s live inside MapLibre's canvas container, so a click
+    // on one bubbles up and fires the map's own click event too. Without
+    // this check, clicking a second pin would open it and immediately close
+    // it again as a "click on the map".
+    map.on("click", (e) => {
+      if (e.originalEvent?.target?.closest?.(".maplibregl-marker")) return;
+      if (placementModeRef.current) return;
+      onMapClickRef.current?.();
+    });
+
+    // The cluster list is placed once in screen pixels, so any camera move
+    // would leave it pointing at the wrong spot
+    map.on("movestart", () => setClusterList(null));
+
+    const markers = markersRef.current;
     return () => {
-      markersRef.current.forEach((m) => m.remove());
-      // Deferred (not synchronous) for the same reason as the marker
-      // re-render effect below: unmounting a React root synchronously
-      // while React is still mid-render (e.g. during Fast Refresh teardown)
-      // triggers "Attempted to synchronously unmount a root..." warnings.
-      const rootsToUnmount = [...markerRootsRef.current];
-      markerRootsRef.current = [];
-      setTimeout(() => rootsToUnmount.forEach((r) => r.unmount()), 0);
+      const roots = [...markers.values()].map((entry) => {
+        entry.marker.remove();
+        return entry.root;
+      });
+      markers.clear();
+      // Deferred (not synchronous) for the same reason as in the marker
+      // effect below: unmounting a React root synchronously while React is
+      // still mid-render (e.g. during Fast Refresh teardown) triggers
+      // "Attempted to synchronously unmount a root..." warnings.
+      setTimeout(() => roots.forEach((r) => r.unmount()), 0);
       mapRef.current?.remove();
       mapRef.current = null;
     };
   }, [mapRef]);
 
-  // Rebuild the cluster index whenever the pins array changes. Pins that are
-  // close together (or at the same coordinates) get grouped into a single
-  // bubble showing how many are there, instead of fully overlapping and
-  // hiding each other with no indication more than one pin exists.
+  // The route through every stop, in order
   useEffect(() => {
-    clusterIndexRef.current = new Supercluster({
-      radius: CLUSTER_RADIUS,
-      maxZoom: CLUSTER_MAX_ZOOM,
-    }).load(
-      pins.map((pin) => ({
-        type: "Feature",
-        properties: { pinId: pin.id },
-        geometry: { type: "Point", coordinates: pin.lngLat },
-      }))
-    );
-  }, [pins]);
+    const map = mapRef.current;
+    if (!map || !styleReady) return;
+    syncRoute(map, pins.map((p) => p.lngLat).filter((c) => Array.isArray(c) && c.length === 2));
+  }, [mapRef, styleReady, pins]);
 
-  // Re-render markers (clusters + individual pins) whenever the pins array
-  // changes or the map's viewport changes, since cluster membership depends
-  // on both.
+  // Markers (clusters + individual pins), updated whenever the pins, the
+  // selection or the viewport change. Existing markers are kept and only
+  // re-rendered when what they show changes, and only markers that come or
+  // go are created or removed: rebuilding them all on every move would drop
+  // keyboard focus from a marker as soon as the map eased after it was
+  // activated.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
+    const selectedPin = pins.find((p) => p.id === selectedPinId) ?? null;
+    const pinsById = new globalThis.Map(pins.map((p) => [p.id, p]));
+    const index = new Supercluster({ radius: CLUSTER_RADIUS, maxZoom: CLUSTER_MAX_ZOOM }).load(
+      pins
+        .filter((pin) => pin !== selectedPin)
+        .map((pin) => ({
+          type: "Feature",
+          properties: { pinId: pin.id },
+          geometry: { type: "Point", coordinates: pin.lngLat },
+        }))
+    );
+    clusterStateRef.current = { index, pins, pinsById };
+    const markers = markersRef.current;
+
+    const createMarker = (key, lngLat, build) => {
+      const el = document.createElement("button");
+      el.type = "button";
+      el.className = MARKER_BUTTON_CLASS;
+      const root = createRoot(el);
+      build(el);
+      const marker = new maplibregl.Marker({ element: el }).setLngLat(lngLat).addTo(map);
+      const entry = { marker, root, el, signature: null };
+      markers.set(key, entry);
+      return entry;
+    };
+
     const renderMarkers = () => {
-      const index = clusterIndexRef.current;
-      if (!index) return;
-
-      // Remove existing MapLibre markers from the map
-      markersRef.current.forEach((m) => m.remove());
-      markersRef.current = [];
-
-      // Defer React root unmounting outside the current render cycle to avoid
-      // the "synchronously unmount a root while React was already rendering" warning
-      const rootsToUnmount = [...markerRootsRef.current];
-      markerRootsRef.current = [];
-      setTimeout(() => rootsToUnmount.forEach((r) => r.unmount()), 0);
-
       const bounds = map.getBounds();
       const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
       const zoom = Math.floor(map.getZoom());
-      const clusters = index.getClusters(bbox, zoom);
+      const features = index.getClusters(bbox, zoom);
+      const wanted = new Set();
 
-      clusters.forEach((feature) => {
-        const [lng, lat] = feature.geometry.coordinates;
-        const el = document.createElement("div");
-        const root = createRoot(el);
-        markerRootsRef.current.push(root);
+      for (const feature of features) {
+        const lngLat = feature.geometry.coordinates;
 
         if (feature.properties.cluster) {
           const { cluster_id: clusterId, point_count: count } = feature.properties;
-          root.render(<ClusterBadge count={count} />);
-          el.addEventListener("click", () => {
-            if (placementModeRef.current) return;
-            const expansionZoom = Math.min(index.getClusterExpansionZoom(clusterId), CLUSTER_MAX_ZOOM + 1);
-            map.flyTo({ center: [lng, lat], zoom: expansionZoom });
+          const key = `cluster:${clusterId}`;
+          wanted.add(key);
+          const entry = markers.get(key) ?? createMarker(key, lngLat, (el) => {
+            el.addEventListener("click", () => {
+              if (placementModeRef.current) return;
+              const { index: current, pins: allPins, pinsById: byId } = clusterStateRef.current;
+              const at = entry.marker.getLngLat().toArray();
+              const size = current.getLeaves(clusterId, Infinity).length;
+              if (size <= CLUSTER_LIST_MAX) {
+                const leaves = current.getLeaves(clusterId, CLUSTER_LIST_MAX)
+                  .map((leaf) => byId.get(leaf.properties.pinId))
+                  .filter(Boolean)
+                  // Leaves come back in index order; show them as stops
+                  .sort((a, b) => allPins.indexOf(a) - allPins.indexOf(b));
+                const point = map.project(at);
+                const container = map.getContainer();
+                setClusterList({
+                  pins: leaves, x: point.x, y: point.y, returnFocusTo: el,
+                  width: container.clientWidth, height: container.clientHeight,
+                });
+                return;
+              }
+              const expansionZoom = Math.min(current.getClusterExpansionZoom(clusterId), CLUSTER_MAX_ZOOM + 1);
+              flyToView(map, { center: at, zoom: expansionZoom });
+            });
           });
-        } else {
-          const pin = pins.find((p) => p.id === feature.properties.pinId);
-          if (!pin) return;
-          root.render(<MarkerPin icon={pin.icon} />);
-          el.dataset.pinId = pin.id;
-          el.addEventListener("click", () => {
-            // Ignore marker clicks during placement mode — user is picking a location
-            if (!placementModeRef.current) {
-              onPinClickRef.current?.(pin);
-            }
-          });
+          const signature = JSON.stringify([count, lngLat]);
+          if (entry.signature !== signature) {
+            entry.marker.setLngLat(lngLat);
+            entry.el.setAttribute("aria-label", `Cluster of ${count} stops`);
+            entry.root.render(<ClusterBadge count={count} />);
+            entry.signature = signature;
+          }
+          continue;
         }
 
-        const marker = new maplibregl.Marker({ element: el })
-          .setLngLat([lng, lat])
-          .addTo(map);
-        markersRef.current.push(marker);
-      });
+        const pin = pinsById.get(feature.properties.pinId);
+        if (pin) wanted.add(syncPin(pin, false));
+      }
+
+      // The selected pin isn't in the index, so it's added separately.
+      // Always kept, even when off screen, so it doesn't flicker out while
+      // the map eases towards it.
+      if (selectedPin) wanted.add(syncPin(selectedPin, true));
+
+      const removedRoots = [];
+      for (const [key, entry] of markers) {
+        if (wanted.has(key)) continue;
+        entry.marker.remove();
+        removedRoots.push(entry.root);
+        markers.delete(key);
+      }
+      // Defer React root unmounting outside the current render cycle to avoid
+      // the "synchronously unmount a root while React was already rendering" warning
+      if (removedRoots.length) setTimeout(() => removedRoots.forEach((r) => r.unmount()), 0);
     };
 
-    if (map.isStyleLoaded()) {
+    // Creates or updates one pin's marker and returns its key
+    function syncPin(pin, selected) {
+      const key = `pin:${pin.id}`;
+      const number = stopNumbers?.[pin.id] ?? null;
+      const entry = markers.get(key) ?? createMarker(key, pin.lngLat, (el) => {
+        el.dataset.pinId = pin.id;
+        el.addEventListener("click", () => {
+          // Ignore marker clicks during placement mode — user is picking a location
+          if (placementModeRef.current) return;
+          onPinClickRef.current?.(clusterStateRef.current.pinsById.get(pin.id) ?? pin);
+        });
+      });
+      const signature = JSON.stringify([pin.icon, pin.label, pin.lngLat, number, selected]);
+      if (entry.signature !== signature) {
+        entry.marker.setLngLat(pin.lngLat);
+        entry.el.setAttribute("aria-label", pinAriaLabel(pin, number));
+        if (selected) entry.el.setAttribute("aria-current", "true");
+        else entry.el.removeAttribute("aria-current");
+        // Lifts the selected marker above its neighbours. MapLibre doesn't
+        // set z-index on marker elements, so this is safe to own here.
+        entry.el.style.zIndex = selected ? "2" : "";
+        entry.root.render(<MarkerPin icon={pin.icon} number={number} selected={selected} />);
+        entry.signature = signature;
+      }
+      return key;
+    }
+
+    if (map.loaded() || map.isStyleLoaded()) {
       renderMarkers();
     } else {
       map.once("load", renderMarkers);
     }
 
     map.on("moveend", renderMarkers);
-    return () => map.off("moveend", renderMarkers);
-  }, [mapRef, pins]);
+    return () => {
+      map.off("moveend", renderMarkers);
+      map.off("load", renderMarkers);
+    };
+  }, [mapRef, pins, stopNumbers, selectedPinId]);
 
   // Handle placement mode: crosshair cursor, preview marker, click to pick
+  const previewMarkerRef = useRef(null);
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -274,5 +447,27 @@ export default function Map({ mapRef, pins = [], homeView = null, placementMode 
     );
   }
 
-  return <div ref={containerRef} className="w-full h-full" />;
+  return (
+    <div className="relative w-full h-full">
+      <div ref={containerRef} className="w-full h-full" />
+      {clusterList && (
+        <ClusterList
+          pins={clusterList.pins}
+          stopNumbers={stopNumbers}
+          x={clusterList.x}
+          y={clusterList.y}
+          containerWidth={clusterList.width}
+          containerHeight={clusterList.height}
+          onPick={(pin) => {
+            setClusterList(null);
+            onPinClickRef.current?.(pin);
+          }}
+          onClose={() => {
+            clusterList.returnFocusTo?.focus();
+            setClusterList(null);
+          }}
+        />
+      )}
+    </div>
+  );
 }

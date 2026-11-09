@@ -84,3 +84,31 @@ describe("POST /api/trips/[tripId]/pins", () => {
     expect(response.status).toBe(400);
   });
 });
+
+describe("POST stop order and date", () => {
+  it("puts a new pin after the last stop", async () => {
+    await data.cleanup();
+    data = await setupTempData({ pins: { [TEST_TRIP.id]: [{ ...SAMPLE_PINS[0], order: 4 }, { ...SAMPLE_PINS[1], order: 9 }] } });
+
+    const response = await POST(postRequest({ label: "New Place", lngLat: [-70, 45] }), makeParams(TEST_TRIP.id));
+    expect((await response.json()).order).toBe(10);
+  });
+
+  it("numbers the first pin of an unordered trip after the existing ones", async () => {
+    const response = await POST(postRequest({ label: "New Place", lngLat: [-70, 45] }), makeParams(TEST_TRIP.id));
+    expect((await response.json()).order).toBe(3);
+  });
+
+  it("ignores an order sent by the client", async () => {
+    const response = await POST(postRequest({ label: "New Place", lngLat: [-70, 45], order: 1 }), makeParams(TEST_TRIP.id));
+    expect((await response.json()).order).toBe(3);
+  });
+
+  it("saves a valid date and rejects a bad one", async () => {
+    const ok = await POST(postRequest({ label: "A", lngLat: [-70, 45], date: "2026-07-14" }), makeParams(TEST_TRIP.id));
+    expect((await ok.json()).date).toBe("2026-07-14");
+
+    const bad = await POST(postRequest({ label: "B", lngLat: [-70, 45], date: "July 14" }), makeParams(TEST_TRIP.id));
+    expect(bad.status).toBe(400);
+  });
+});

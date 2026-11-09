@@ -1,4 +1,5 @@
 import { getTrip, readPins, mutatePins } from "@/lib/store";
+import { nextOrder, sanitizePinDate } from "@/lib/pins";
 
 export async function GET(_, { params }) {
   const { tripId } = await params;
@@ -14,19 +15,27 @@ export async function POST(request, { params }) {
   if (!label || !lngLat) {
     return Response.json({ error: "label and lngLat are required" }, { status: 400 });
   }
+  const { date = null, error } = sanitizePinDate(body);
+  if (error) return Response.json({ error }, { status: 400 });
 
-  const newPin = {
-    id: crypto.randomUUID(),
+  const pinFields = {
     label,
     description: description ?? "",
     lngLat,
     icon: icon ?? "default",
     images: images ?? [],
     wikipedia: wikipedia ?? null,
+    date,
   };
 
-  const result = await mutatePins(tripId, (pins) => ({ pins: [...pins, newPin], result: { pin: newPin } }));
+  // The id and order are assigned inside the queue: order is "one past the
+  // current last stop", and reading the pins outside it could hand two
+  // concurrent adds the same number
+  const result = await mutatePins(tripId, (pins) => {
+    const newPin = { id: crypto.randomUUID(), ...pinFields, order: nextOrder(pins) };
+    return { pins: [...pins, newPin], result: { pin: newPin } };
+  });
 
   if (result.error) return Response.json({ error: result.error }, { status: result.status });
-  return Response.json(newPin, { status: 201 });
+  return Response.json(result.pin, { status: 201 });
 }
