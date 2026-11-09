@@ -25,6 +25,14 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* The trip switcher pill sits in the top-left corner (top-4, ~36px tall), so
+   push MapLibre's zoom/home controls down below it instead of under it.
+   Scoped under .maplibregl-map so it outranks maplibre-gl.css, which is
+   imported by Map.js and so lands after this file. */
+.maplibregl-map .maplibregl-ctrl-top-left {
+  top: 52px;
+}
+
 /* Remove default padding so the image can fill edge-to-edge */
 .maplibregl-popup-content {
   padding: 0;

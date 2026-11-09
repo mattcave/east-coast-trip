@@ -7,10 +7,11 @@ import * as maplibregl from "maplibre-gl";
 import Supercluster from "supercluster";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { PIN_ICONS } from "@/lib/icons";
+import { flyToView, initialMapOptions } from "@/lib/trips";
 
-// Bounds: Toronto (west) to Sydney NS (east)
-const DEFAULT_CENTER = [-69.8, 45.2];
-const DEFAULT_ZOOM = 5.5;
+// Trips can be anywhere, so the map only stops short of the whole-world view
+// (where pins and clusters stop meaning much)
+const MIN_ZOOM = 2;
 
 // Pixel radius (at the current zoom) within which pins are grouped into a
 // cluster, and the zoom past which they always render individually.
@@ -61,7 +62,10 @@ function ClusterBadge({ count }) {
   );
 }
 
-export default function Map({ mapRef, pins = [], placementMode = false, onLocationPick, onPinClick }) {
+// homeView is the current trip's view (see tripHomeView): where the map
+// starts, and where the Home button returns to. Moving the map when the trip
+// changes is up to the parent, since only it knows a switch happened.
+export default function Map({ mapRef, pins = [], homeView = null, placementMode = false, onLocationPick, onPinClick }) {
   const containerRef = useRef(null);
   const [initError, setInitError] = useState(null);
   const markersRef = useRef([]);      // MapLibre Marker instances
@@ -73,6 +77,8 @@ export default function Map({ mapRef, pins = [], placementMode = false, onLocati
   useEffect(() => { onPinClickRef.current = onPinClick; });
   const placementModeRef = useRef(placementMode);
   useEffect(() => { placementModeRef.current = placementMode; });
+  const homeViewRef = useRef(homeView);
+  useEffect(() => { homeViewRef.current = homeView; });
 
   useEffect(() => {
     if (mapRef.current) return;
@@ -87,9 +93,8 @@ export default function Map({ mapRef, pins = [], placementMode = false, onLocati
       map = new maplibregl.Map({
         container: containerRef.current,
         style: "/api/map/style",
-        center: DEFAULT_CENTER,
-        zoom: DEFAULT_ZOOM,
-        minZoom: DEFAULT_ZOOM - 0.75,
+        ...initialMapOptions(homeViewRef.current),
+        minZoom: MIN_ZOOM,
       });
     } catch {
       // MapLibre throws synchronously when WebGL is unavailable, and that's
@@ -103,14 +108,14 @@ export default function Map({ mapRef, pins = [], placementMode = false, onLocati
     map.addControl(new maplibregl.NavigationControl(), "top-left");
     map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
-    // Home button — returns the map to the default center and zoom
+    // Home button — returns the map to the current trip's view
     const homeBtn = document.createElement("button");
     homeBtn.className = "maplibregl-ctrl-icon";
     homeBtn.title = "Reset view";
     homeBtn.style.cssText = "display:flex; align-items:center; justify-content:center;";
     homeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>`;
     homeBtn.addEventListener("click", () => {
-      map.flyTo({ center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM });
+      flyToView(map, homeViewRef.current);
     });
     const homeControl = document.createElement("div");
     homeControl.className = "maplibregl-ctrl maplibregl-ctrl-group";

@@ -25,8 +25,8 @@ describe("public routes (no cookie required)", () => {
     expect(response.headers.get("location")).toBeNull();
   });
 
-  it("allows GET /api/pins", async () => {
-    const response = await proxy(await makeRequest("/api/pins"));
+  it("allows GET /api/trips/t/pins", async () => {
+    const response = await proxy(await makeRequest("/api/trips/t/pins"));
     expect(response.status).not.toBe(401);
     expect(response.headers.get("location")).toBeNull();
   });
@@ -58,29 +58,43 @@ describe("protected page routes", () => {
 });
 
 describe("protected API write routes", () => {
-  it("blocks POST /api/pins without a cookie", async () => {
-    const response = await proxy(await makeRequest("/api/pins", { method: "POST" }));
+  it("blocks POST /api/trips/t/pins without a cookie", async () => {
+    const response = await proxy(await makeRequest("/api/trips/t/pins", { method: "POST" }));
     expect(response.status).toBe(401);
   });
 
-  it("blocks PATCH /api/pins/1 without a cookie", async () => {
-    const response = await proxy(await makeRequest("/api/pins/1", { method: "PATCH" }));
+  it("blocks PATCH /api/trips/t/pins/1 without a cookie", async () => {
+    const response = await proxy(await makeRequest("/api/trips/t/pins/1", { method: "PATCH" }));
     expect(response.status).toBe(401);
   });
 
-  it("blocks DELETE /api/pins/1 without a cookie", async () => {
-    const response = await proxy(await makeRequest("/api/pins/1", { method: "DELETE" }));
+  it("blocks DELETE /api/trips/t/pins/1 without a cookie", async () => {
+    const response = await proxy(await makeRequest("/api/trips/t/pins/1", { method: "DELETE" }));
     expect(response.status).toBe(401);
   });
 
-  it("allows POST /api/pins with a valid cookie", async () => {
-    const response = await proxy(await makeRequest("/api/pins", { method: "POST", token: await generateToken() }));
+  it("allows POST /api/trips/t/pins with a valid cookie", async () => {
+    const response = await proxy(await makeRequest("/api/trips/t/pins", { method: "POST", token: await generateToken() }));
     expect(response.status).not.toBe(401);
   });
 
-  it("blocks POST /api/pins with an invalid cookie", async () => {
-    const response = await proxy(await makeRequest("/api/pins", { method: "POST", token: "bad-token" }));
+  it("blocks POST /api/trips/t/pins with an invalid cookie", async () => {
+    const response = await proxy(await makeRequest("/api/trips/t/pins", { method: "POST", token: "bad-token" }));
     expect(response.status).toBe(401);
+  });
+
+  it.each([
+    ["POST", "/api/trips"],
+    ["PATCH", "/api/trips/t"],
+    ["DELETE", "/api/trips/t"],
+  ])("blocks %s %s without a cookie", async (method, path) => {
+    const response = await proxy(await makeRequest(path, { method }));
+    expect(response.status).toBe(401);
+  });
+
+  it("allows GET /api/trips without a cookie", async () => {
+    const response = await proxy(await makeRequest("/api/trips"));
+    expect(response.status).not.toBe(401);
   });
 
   it("allows POST /api/login without a cookie — login must be public", async () => {

@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 
 // Available pin icons. Add entries here to expand the set.
-// Keys are stored in pins.json and used in the editor icon picker.
+// Keys are stored on each pin (data/pins/<trip-id>.json) and used in the editor icon picker.
 export const PIN_ICONS = {
   home:       { icon: Home,      label: "Home",       color: "#d97706" }, // amber
   landmark:   { icon: Landmark,  label: "Landmark",   color: "#7c3aed" }, // purple — historic sites, museums, forts, heritage towns

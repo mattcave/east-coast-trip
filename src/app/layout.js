@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { SITE_NAME } from "@/lib/trips";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -11,9 +12,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Trip pages set their own title, which the template turns into
+// "East Coast Trip · Cave Family Road Trips"
 export const metadata = {
-  title: "East Coast Trip",
-  description: "Our east coast Canada road trip",
+  title: { template: `%s · ${SITE_NAME}`, default: SITE_NAME },
+  description: "Our family road trips, pinned on a map with photos and stories from every stop",
 };
 
 export default function RootLayout({ children }) {

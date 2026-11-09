@@ -1,0 +1,17 @@
+{
+  "defaultTripId": "east-coast-2026",
+  "trips": [
+    {
+      "id": "east-coast-2026",
+      "name": "East Coast Trip",
+      "description": "Ontario to Nova Scotia in our motorhome",
+      "intro": "We piled into our trusty motorhome, Fernando, and drove all the way from Ontario to Nova Scotia this summer - this map is every place we stopped along the way, pinned right where the memory happened.",
+      "startDate": null,
+      "endDate": null,
+      "view": {
+        "center": [-69.8, 45.2],
+        "zoom": 5.5
+      }
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { X, Plus, Pencil, Trash2, MapPin, LogOut } from "lucide-react";
 import { PIN_ICONS } from "@/lib/icons";
+import TripManager from "./TripManager";
 
 const EMPTY_FORM = {
   label: "",
@@ -130,7 +131,7 @@ function LocationSearch({ onSelect }) {
   );
 }
 
-function PinForm({ initial, onSave, onCancel, onDelete, onPickLocation, onFlyTo }) {
+function PinForm({ tripId, initial, onSave, onCancel, onDelete, onPickLocation, onFlyTo }) {
   const [form, setForm] = useState(initial ?? EMPTY_FORM);
   // Unified gallery: each entry is either an already-saved photo
   // ({ kind: "existing", url }) or a file picked but not yet uploaded
@@ -228,7 +229,7 @@ function PinForm({ initial, onSave, onCancel, onDelete, onPickLocation, onFlyTo 
     }
 
     const isNew = !initial?.id;
-    const url = isNew ? "/api/pins" : `/api/pins/${initial.id}`;
+    const url = isNew ? `/api/trips/${tripId}/pins` : `/api/trips/${tripId}/pins/${initial.id}`;
     const method = isNew ? "POST" : "PATCH";
 
     // Normalize lngLat to [lng, lat] array for consistent storage.
@@ -270,7 +271,7 @@ function PinForm({ initial, onSave, onCancel, onDelete, onPickLocation, onFlyTo 
             {form.lngLat
               ? (() => {
                   // lngLat may be a MapLibre LngLat object {lat,lng} (from map click)
-                  // or a plain array [lng, lat] (from pins.json storage)
+                  // or a plain array [lng, lat] (from the stored pin data)
                   const lat = form.lngLat.lat ?? form.lngLat[1];
                   const lng = form.lngLat.lng ?? form.lngLat[0];
                   return `${lat.toFixed(4)}°N, ${lng.toFixed(4)}°W`;
@@ -474,8 +475,15 @@ function PinForm({ initial, onSave, onCancel, onDelete, onPickLocation, onFlyTo 
   );
 }
 
-export default function EditorModal({ pins, onClose, onStartPlacement, onRefresh, onFlyTo, editTargetId, onEditTargetConsumed }) {
-  const [view, setView] = useState("list"); // 'list' | 'form'
+// Admin side panel. Pins are always edited within the current trip; the
+// Trips tab manages the trips themselves. TripMap re-keys this component by
+// trip id, so switching trips resets any half-finished pin form.
+export default function EditorModal({
+  trip, trips, defaultTripId, pinsByTrip, getMapView, onTripsChanged,
+  pins, onClose, onStartPlacement, onRefresh, onFlyTo, editTargetId, onEditTargetConsumed,
+}) {
+  const [tab, setTab] = useState("pins"); // 'pins' | 'trips'
+  const [view, setView] = useState("list"); // 'list' | 'form' (pins tab only)
   const [editingPin, setEditingPin] = useState(null);
   const scrollRef = useRef(null);
   const [deletingId, setDeletingId] = useState(null);
@@ -496,7 +504,7 @@ export default function EditorModal({ pins, onClose, onStartPlacement, onRefresh
   if (editTargetId !== handledTargetId) {
     setHandledTargetId(editTargetId);
     const pin = editTargetId && pins.find((p) => p.id === editTargetId);
-    if (pin) { setEditingPin(pin); setView("form"); }
+    if (pin) { setTab("pins"); setEditingPin(pin); setView("form"); }
   }
 
   // Side effects outside React state stay in the effect: scroll, map fly-to,
@@ -520,14 +528,14 @@ export default function EditorModal({ pins, onClose, onStartPlacement, onRefresh
   };
 
   const deleteFromForm = async (id) => {
-    await fetch(`/api/pins/${id}`, { method: "DELETE" });
+    await fetch(`/api/trips/${trip.id}/pins/${id}`, { method: "DELETE" });
     await onRefresh();
     backToList();
   };
 
   const confirmDelete = async () => {
     setDeleting(true);
-    await fetch(`/api/pins/${deletingId}`, { method: "DELETE" });
+    await fetch(`/api/trips/${trip.id}/pins/${deletingId}`, { method: "DELETE" });
     setDeletingId(null);
     setDeleting(false);
     await onRefresh();
@@ -537,16 +545,28 @@ export default function EditorModal({ pins, onClose, onStartPlacement, onRefresh
     <div className="absolute top-0 right-0 h-full w-full sm:w-80 bg-white shadow-2xl flex flex-col z-10">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <div className="flex items-center gap-2">
-          {view === "form" && (
+        {tab === "pins" && view === "form" ? (
+          <div className="flex items-center gap-2">
             <button onClick={backToList} className="text-gray-400 hover:text-gray-600 text-sm">
               ←
             </button>
-          )}
-          <h2 className="font-semibold text-gray-800 text-sm">
-            {view === "list" ? "Edit Pins" : editingPin ? "Edit Pin" : "Add Pin"}
-          </h2>
-        </div>
+            <h2 className="font-semibold text-gray-800 text-sm">{editingPin ? "Edit Pin" : "Add Pin"}</h2>
+          </div>
+        ) : (
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
+            {[{ key: "pins", label: "Pins" }, { key: "trips", label: "Trips" }].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => { setTab(key); scrollToTop(); }}
+                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                  tab === key ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex items-center gap-1">
           <button onClick={logout} title="Sign out" className="text-gray-400 hover:text-gray-600 p-1">
             <LogOut size={16} />
@@ -559,8 +579,22 @@ export default function EditorModal({ pins, onClose, onStartPlacement, onRefresh
 
       {/* Content */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
-        {view === "list" && (
+        {tab === "trips" && (
+          <TripManager
+            trips={trips}
+            defaultTripId={defaultTripId}
+            pinsByTrip={pinsByTrip}
+            currentTripId={trip.id}
+            getMapView={getMapView}
+            onTripsChanged={onTripsChanged}
+          />
+        )}
+
+        {tab === "pins" && view === "list" && (
           <>
+            <p className="mb-3 text-xs text-gray-400">
+              Pins in <span className="font-medium text-gray-600">{trip.name}</span>
+            </p>
             <button
               onClick={openAdd}
               className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-gray-200 hover:border-blue-400 text-gray-500 hover:text-blue-600 rounded-lg py-2.5 text-sm font-medium mb-4 transition-colors"
@@ -618,8 +652,9 @@ export default function EditorModal({ pins, onClose, onStartPlacement, onRefresh
           </>
         )}
 
-        {view === "form" && (
+        {tab === "pins" && view === "form" && (
           <PinForm
+            tripId={trip.id}
             initial={editingPin}
             onSave={handleSave}
             onCancel={backToList}

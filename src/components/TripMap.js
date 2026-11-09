@@ -1,15 +1,59 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { useParams } from "next/navigation";
 import { Pencil, HelpCircle } from "lucide-react";
 import Map from "./Map";
 import GeoSearch from "./GeoSearch";
 import EditorModal from "./EditorModal";
 import PinPopup from "./PinPopup";
-import WelcomeModal from "./WelcomeModal";
+import TripSummary from "./TripSummary";
+import TripChooser from "./TripChooser";
+import TripSwitcher from "./TripSwitcher";
+import { tripHomeView, flyToView } from "@/lib/trips";
 
-export default function TripMap({ initialPins, isAuthenticated }) {
-  const [pins, setPins] = useState(initialPins);
+// Stable empty array so a trip without pins doesn't hand Map a new array
+// (and rebuild its markers) on every render
+const NO_PINS = [];
+
+// Trip summaries show once per trip per browser. The pre-multi-trip welcome
+// modal stored a single flag; it counts as having seen the East Coast trip.
+const summaryKey = (tripId) => `road-trips:summary-dismissed:${tripId}`;
+const LEGACY_WELCOME_KEY = "east-coast-trip:welcome-dismissed";
+const LEGACY_WELCOME_TRIP_ID = "east-coast-2026";
+
+function isSummaryDismissed(tripId) {
+  try {
+    if (localStorage.getItem(summaryKey(tripId))) return true;
+    return tripId === LEGACY_WELCOME_TRIP_ID && Boolean(localStorage.getItem(LEGACY_WELCOME_KEY));
+  } catch {
+    // localStorage unavailable (private browsing, etc.) - treat as unseen
+    return false;
+  }
+}
+
+// Rendered once by the (map) layout and kept mounted across "/" and
+// "/trips/[id]", so the current trip comes from the URL on every render
+// rather than from props. Trips and pins are seeded from the server and then
+// owned here, refreshed from the API after admin edits.
+export default function TripMap({ initialTrips, initialDefaultTripId, initialPinsByTrip, isAuthenticated }) {
+  const params = useParams();
+  const routeTripId = params?.id ?? null;
+  const isRoot = routeTripId === null;
+
+  const [trips, setTrips] = useState(initialTrips);
+  const [defaultTripId, setDefaultTripId] = useState(initialDefaultTripId);
+  const [pinsByTrip, setPinsByTrip] = useState(initialPinsByTrip);
+
+  // "/" shows the default trip. An unknown id falls back the same way - the
+  // trip page redirects those to "/", but a just-deleted trip can still be
+  // in the URL for a moment.
+  const trip = trips.find((t) => t.id === routeTripId)
+    ?? trips.find((t) => t.id === defaultTripId)
+    ?? trips[0];
+  const pins = pinsByTrip[trip.id] ?? NO_PINS;
+  const homeView = useMemo(() => tripHomeView(trip, pins), [trip, pins]);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [placementMode, setPlacementMode] = useState(false);
   const [editTargetId, setEditTargetId] = useState(null);
@@ -22,34 +66,76 @@ export default function TripMap({ initialPins, isAuthenticated }) {
   const onPickCallbackRef = useRef(null);
   const pickingPinIdRef = useRef(null);
 
-  // Show the welcome modal once per browser, on first visit only.
-  // localStorage isn't available during SSR, so this must run as an effect
-  // (after the server-rendered/hydrated markup matches) rather than in a
-  // lazy useState initializer - reading it during render would make the
-  // client's first render diverge from the server's and break hydration.
-  const WELCOME_STORAGE_KEY = "east-coast-trip:welcome-dismissed";
-  const [showWelcome, setShowWelcome] = useState(false);
-  useEffect(() => {
-    try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: this IS the client/SSR sync effect, not a derivable render value
-      if (!localStorage.getItem(WELCOME_STORAGE_KEY)) setShowWelcome(true);
-    } catch {
-      // localStorage unavailable (private browsing, etc.) - just skip it
-    }
-  }, []);
+  // Per-trip UI state is dropped when the trip changes. Done during render
+  // (React's "adjust state when a prop changes" pattern) so the old trip's
+  // popup never flashes over the new trip's pins.
+  const [shownTripId, setShownTripId] = useState(trip.id);
+  if (trip.id !== shownTripId) {
+    setShownTripId(trip.id);
+    setSelectedPin(null);
+    setEditTargetId(null);
+    setPlacementMode(false);
+  }
 
-  const dismissWelcome = () => {
-    setShowWelcome(false);
+  // Fly to the new trip when it changes. The map already starts at the
+  // initial trip's view, so the first trip is skipped.
+  const flownTripIdRef = useRef(trip.id);
+  useEffect(() => {
+    if (flownTripIdRef.current === trip.id) return;
+    flownTripIdRef.current = trip.id;
+    onPickCallbackRef.current = null;
+    pickingPinIdRef.current = null;
+    flyToView(mapRef.current, homeView);
+  }, [trip.id, homeView]);
+
+  // Which popup covers the map: the trip chooser, a trip summary, or neither.
+  // "/" opens the chooser on every visit, and that's known at render time,
+  // so it's in the initial state and server-rendered. Whether a trip page
+  // shows its summary depends on localStorage, which isn't available during
+  // SSR, so that has to wait for an effect - reading it during render would
+  // make the client's first render diverge from the server's and break
+  // hydration. The effect also re-runs on client-side navigation between trips.
+  const [overlay, setOverlay] = useState(isRoot ? "chooser" : null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncs with the route and localStorage, neither readable during SSR
+    setOverlay(isRoot ? "chooser" : isSummaryDismissed(trip.id) ? null : "summary");
+  }, [isRoot, trip.id]);
+
+  const closeSummary = () => {
+    setOverlay(null);
     try {
-      localStorage.setItem(WELCOME_STORAGE_KEY, "1");
+      localStorage.setItem(summaryKey(trip.id), "1");
     } catch {
-      // ignore - worst case the modal reappears next visit
+      // ignore - worst case the summary reappears next visit
     }
   };
 
   const refreshPins = async () => {
-    const res = await fetch("/api/pins");
-    setPins(await res.json());
+    const tripId = trip.id;
+    const res = await fetch(`/api/trips/${tripId}/pins`);
+    if (!res.ok) return;
+    const nextPins = await res.json();
+    setPinsByTrip((prev) => ({ ...prev, [tripId]: nextPins }));
+  };
+
+  const refreshTrips = async () => {
+    const res = await fetch("/api/trips");
+    if (!res.ok) return;
+    const config = await res.json();
+    setTrips(config.trips);
+    setDefaultTripId(config.defaultTripId);
+    // New trips start empty; deleted trips' pins are dropped
+    setPinsByTrip((prev) => Object.fromEntries(config.trips.map((t) => [t.id, prev[t.id] ?? []])));
+  };
+
+  // For "Use current map view" in the trip form. Rounded so trips.json
+  // doesn't fill up with 15-decimal floats.
+  const getMapView = () => {
+    const map = mapRef.current;
+    if (!map) return null;
+    const { lng, lat } = map.getCenter();
+    const round = (n, places) => Math.round(n * 10 ** places) / 10 ** places;
+    return { center: [round(lng, 5), round(lat, 5)], zoom: round(map.getZoom(), 2) };
   };
 
   const startPlacement = (callback, pinId = null) => {
@@ -70,7 +156,11 @@ export default function TripMap({ initialPins, isAuthenticated }) {
     const pinId = pickingPinIdRef.current;
     if (pinId) {
       const lngLatArray = [lngLat.lng, lngLat.lat];
-      setPins((prev) => prev.map((p) => p.id === pinId ? { ...p, lngLat: lngLatArray } : p));
+      const tripId = trip.id;
+      setPinsByTrip((prev) => ({
+        ...prev,
+        [tripId]: (prev[tripId] ?? []).map((p) => p.id === pinId ? { ...p, lngLat: lngLatArray } : p),
+      }));
     }
     pickingPinIdRef.current = null;
 
@@ -89,10 +179,19 @@ export default function TripMap({ initialPins, isAuthenticated }) {
       <Map
         mapRef={mapRef}
         pins={pins}
+        homeView={homeView}
         placementMode={placementMode}
         onLocationPick={handleLocationPick}
         onPinClick={(pin) => setSelectedPin(pin)}
       />
+
+      {!placementMode && (
+        <TripSwitcher
+          trips={trips}
+          currentTripId={trip.id}
+          onShowAllTrips={() => setOverlay("chooser")}
+        />
+      )}
 
       {/* Floating search box shown during placement mode */}
       {placementMode && (
@@ -114,28 +213,51 @@ export default function TripMap({ initialPins, isAuthenticated }) {
         </button>
       )}
 
-      {/* Help button - reopens the welcome modal on demand. Top-right,
-          hidden while logged in since the Admin button takes that spot;
-          the bottom corners are taken by MapLibre's scale/attribution. */}
+      {/* Help button - reopens this page's popup (chooser at "/", the trip
+          summary on a trip page). Top-right, hidden while logged in since
+          the Admin button takes that spot; the bottom corners are taken by
+          MapLibre's scale/attribution. */}
       {!placementMode && !isAuthenticated && (
         <button
-          onClick={() => setShowWelcome(true)}
-          aria-label="About this site"
-          title="About this site"
+          onClick={() => setOverlay(isRoot ? "chooser" : "summary")}
+          aria-label="About this trip"
+          title="About this trip"
           className="absolute top-4 right-4 z-10 flex items-center justify-center w-9 h-9 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-700 rounded-full shadow-md border border-gray-200 transition-colors"
         >
           <HelpCircle size={18} />
         </button>
       )}
 
-      {/* Welcome modal - shown once for new visitors, reopenable via the help button */}
-      {showWelcome && <WelcomeModal onClose={dismissWelcome} />}
+      {overlay === "summary" && (
+        <TripSummary
+          trip={trip}
+          pinCount={pins.length}
+          onClose={closeSummary}
+          onShowAllTrips={trips.length > 1 ? () => { closeSummary(); setOverlay("chooser"); } : null}
+        />
+      )}
+
+      {overlay === "chooser" && (
+        <TripChooser
+          trips={trips}
+          pinsByTrip={pinsByTrip}
+          currentTripId={isRoot ? null : trip.id}
+          onClose={() => setOverlay(null)}
+        />
+      )}
 
       {/* Editor side panel — kept mounted during placement mode so form state
           (including partially-filled fields) survives the pick flow */}
       {(modalOpen || placementMode) && (
         <div className={placementMode ? "hidden" : undefined}>
           <EditorModal
+            key={trip.id}
+            trip={trip}
+            trips={trips}
+            defaultTripId={defaultTripId}
+            pinsByTrip={pinsByTrip}
+            getMapView={getMapView}
+            onTripsChanged={refreshTrips}
             pins={pins}
             onClose={() => setModalOpen(false)}
             onStartPlacement={startPlacement}

@@ -1,10 +1,10 @@
-import { mutatePins } from "@/lib/pins";
+import { mutatePins } from "@/lib/store";
 
 export async function PATCH(request, { params }) {
-  const { id } = await params;
+  const { tripId, id } = await params;
   const updates = await request.json();
 
-  const result = await mutatePins((pins) => {
+  const result = await mutatePins(tripId, (pins) => {
     const index = pins.findIndex((p) => p.id === id);
     if (index === -1) return { result: { error: "Pin not found", status: 404 } };
 
@@ -19,9 +19,9 @@ export async function PATCH(request, { params }) {
 }
 
 export async function DELETE(_, { params }) {
-  const { id } = await params;
+  const { tripId, id } = await params;
 
-  const result = await mutatePins((pins) => {
+  const result = await mutatePins(tripId, (pins) => {
     const index = pins.findIndex((p) => p.id === id);
     if (index === -1) return { result: { error: "Pin not found", status: 404 } };
 

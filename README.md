@@ -1,6 +1,6 @@
-# East Coast Trip
+# Cave Family Road Trips
 
-An interactive road trip map for our summer drive from Ontario to Nova Scotia. Locations are displayed as map pins with photos, descriptions, and icons. An authenticated admin panel allows pins to be added, edited, and removed directly on the map.
+Interactive maps of our family road trips, starting with our summer drive from Ontario to Nova Scotia. Each trip is its own set of map pins with photos, descriptions, and icons, and one trip is shown at a time. An authenticated admin panel allows trips and pins to be added, edited, and removed directly on the map.
 
 ## Stack
 
@@ -11,15 +11,17 @@ An interactive road trip map for our summer drive from Ontario to Nova Scotia. L
 - **[Sharp](https://sharp.pixelplumbing.com)** — server-side image resizing and WebP conversion
 - **[Tailwind CSS v4](https://tailwindcss.com)** — styling
 - **[Lucide React](https://lucide.dev)** — pin icons
-- Data stored in `data/pins.json` — no database required
+- Data stored as JSON files in `data/` — no database required
 
 ## Features
 
+- Multiple trips, each at its own URL (`/trips/<id>`), with a switcher to jump between them
+- Home page trip chooser, and a short intro the first time someone opens each trip
 - Interactive map with coloured, categorised pins
 - Photo popups with name, description, and icon
 - Authenticated admin panel (single shared password)
 - Add pins by searching for a place or clicking the map
-- Image upload with automatic crop and resize (1200×800 WebP)
+- Image upload with automatic resize to WebP (original aspect ratio kept)
 - API keys kept server-side — never exposed to the client
 
 ## Development
@@ -51,6 +53,18 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+### Data
+
+```
+data/
+  trips.json              { defaultTripId, trips: [{ id, name, description, intro, startDate, endDate, view }] }
+  pins/<trip-id>.json     that trip's pins
+```
+
+The default trip is the one shown behind the trip chooser at `/`. A trip's `view` (`{ center, zoom }`) is where the map starts for it; when it's `null` the map fits all of the trip's pins. Both are set from the admin panel's Trips tab.
+
+Older installs kept everything in a single `data/pins.json`. On first request the app moves that file to `data/pins/east-coast-2026.json` and creates `trips.json` around it, so no manual migration step is needed.
+
 ### Tests
 
 ```bash
@@ -67,7 +81,7 @@ Create a `.env` file in the project root with the same variables as above, then:
 docker compose up -d --build
 ```
 
-Pin data is persisted in `./data/pins.json` and uploaded images in `./public/uploads/`, both bind-mounted from the host so they survive container rebuilds.
+Trip and pin data is persisted in `./data/` and uploaded images in `./public/uploads/`, both bind-mounted from the host so they survive container rebuilds.
 
 ### Building from a Git remote
 

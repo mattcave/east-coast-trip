@@ -11,8 +11,8 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - SESSION_SECRET=${SESSION_SECRET}
     volumes:
-      # Persist pin data and uploaded images outside the container
+      # Persist trip and pin data and uploaded images outside the container
       - ./data:/app/data
       - ./public/uploads:/app/public/uploads
-    container_name: east-coast-trip
+    container_name: cave-family-road-trips
     restart: unless-stopped

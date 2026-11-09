@@ -28,9 +28,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# Seed an empty pins file so the app starts cleanly without a volume mounted
+# Writable data dir so the app starts cleanly without a volume mounted. The
+# app creates trips.json (and migrates any old pins.json) on first request.
 RUN mkdir -p data \
- && echo "[]" > data/pins.json \
  && chown -R nextjs:nodejs data public/uploads 2>/dev/null || true
 
 USER nextjs
