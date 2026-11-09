@@ -63,6 +63,15 @@ data/
 
 The default trip is the one shown behind the trip chooser at `/`. A trip's `view` (`{ center, zoom }`) is where the map starts for it; when it's `null` the map fits all of the trip's pins. Both are set from the admin panel's Trips tab.
 
+`data/` and `public/uploads/` aren't committed. To develop against the real trips, pins, and photos, copy them from production:
+
+```bash
+npm run fixtures:pull             # data, plus any photos not already downloaded
+npm run fixtures:pull -- --force  # re-download every photo
+```
+
+It only reads the public GET endpoints, so no login is needed. Set `PROD_URL` to pull from a different host. Without any data the app still starts, with the default trip and no pins.
+
 Older installs kept everything in a single `data/pins.json`. On first request the app moves that file to `data/pins/east-coast-2026.json` and creates `trips.json` around it, so no manual migration step is needed.
 
 ### Tests

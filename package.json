@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "fixtures:pull": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/pull-fixtures.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.7.0",
