@@ -26,11 +26,11 @@ export default function TripSummary({ trip, pins, onClose, onShowAllTrips }) {
   const intro = trip.intro || trip.description;
 
   return (
-    <Sheet onClose={onClose}>
+    <Sheet onClose={onClose} labelledBy="trip-summary-title">
       <div className="p-5 pb-8 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="font-semibold text-gray-900 text-lg sm:text-xl leading-snug">{trip.name}</h2>
+            <h2 id="trip-summary-title" className="font-semibold text-gray-900 text-lg sm:text-xl leading-snug">{trip.name}</h2>
             <p className="mt-0.5 text-xs font-medium text-gray-400">{meta}</p>
           </div>
           <button

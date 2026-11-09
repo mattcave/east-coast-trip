@@ -639,7 +639,7 @@ export default function EditorModal({
           </div>
         )}
         <div className="flex items-center gap-1">
-          <button onClick={logout} title="Sign out" className="text-gray-400 hover:text-gray-600 p-1">
+          <button onClick={logout} title="Sign out" aria-label="Sign out" className="text-gray-400 hover:text-gray-600 p-1">
             <LogOut size={16} />
           </button>
           <button onClick={onClose} aria-label="Close" className="text-gray-400 hover:text-gray-600 p-1">

@@ -387,21 +387,10 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   if (isUnknownTrip) return null;
 
   return (
-    <div className={`relative w-full h-full ${categories.length > 1 && !placementMode ? "with-category-chips" : ""}`}>
-      <Map
-        mapRef={mapRef}
-        pins={mapPins}
-        stopNumbers={stopNumbers}
-        selectedPinId={selectedPin?.id ?? null}
-        homeView={homeView}
-        placementMode={placementMode}
-        onLocationPick={handleLocationPick}
-        onPinClick={openStop}
-        // Clicking the open map closes the stop panel or stops list
-        // (desktop has no backdrop to click)
-        onMapClick={closePanels}
-      />
-
+    <div className={`trip-map relative w-full h-full ${categories.length > 1 && !placementMode ? "with-category-chips" : ""}`}>
+      {/* The floating controls come before the map in the DOM, though they
+          sit on top of it (z-10), so keyboard users reach the trip menu,
+          Stops and the filters before tabbing through the markers */}
       {/* Top bar: trip menu and Stops button, with the category chips
           below. The wrapper ignores clicks so the map stays usable in the
           gaps; the right margin leaves room for the help/Admin button. */}
@@ -472,6 +461,20 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
           <HelpCircle size={18} />
         </button>
       )}
+
+      <Map
+        mapRef={mapRef}
+        pins={mapPins}
+        stopNumbers={stopNumbers}
+        selectedPinId={selectedPin?.id ?? null}
+        homeView={homeView}
+        placementMode={placementMode}
+        onLocationPick={handleLocationPick}
+        onPinClick={openStop}
+        // Clicking the open map closes the stop panel or stops list
+        // (desktop has no backdrop to click)
+        onMapClick={closePanels}
+      />
 
       {overlay === "summary" && (
         <TripSummary

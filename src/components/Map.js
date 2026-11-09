@@ -174,6 +174,14 @@ export default function Map({
     // silently fails to load and no vector tiles ever get requested.
     maplibregl.setWorkerUrl("/api/map/worker/maplibre-gl-worker.mjs");
 
+    // Phones and tablets: people pinch to zoom, so the +/- buttons are
+    // clutter, and a stray two-finger twist or tilt would leave the map
+    // rotated with no compass to put it back. So on a touch-first device
+    // rotation and pitch are off and the zoom/compass control isn't added.
+    // "pointer: coarse" is the primary input, so a laptop with a
+    // touchscreen still counts as a mouse device.
+    const isTouch = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+
     let map;
     try {
       map = new maplibregl.Map({
@@ -181,6 +189,10 @@ export default function Map({
         style: "/api/map/style",
         ...initialMapOptions(homeViewRef.current),
         minZoom: MIN_ZOOM,
+        dragRotate: !isTouch,
+        touchPitch: !isTouch,
+        // Added below as a compact (collapsible) control instead
+        attributionControl: false,
       });
     } catch {
       // MapLibre throws synchronously when WebGL is unavailable, and that's
@@ -191,7 +203,27 @@ export default function Map({
     }
 
     mapRef.current = map;
-    map.addControl(new maplibregl.NavigationControl(), "top-left");
+    if (isTouch) map.touchZoomRotate.disableRotation();
+    else map.addControl(new maplibregl.NavigationControl(), "top-left");
+
+    // Compact attribution: on a phone the full credits wrap to two lines
+    // across the bottom of the map. MapLibre's compact control still starts
+    // expanded, and only folds into its (i) button after the first drag, so
+    // it's folded once the map first settles. Desktop (wider than 640px)
+    // keeps the full one-line credits, as MapLibre does by default.
+    // `compact` is left unset on purpose: unset means "compact only when the
+    // map is 640px wide or less", where `true` would fold it on desktop too.
+    // Passing any options replaces MapLibre's defaults, so its own credit
+    // link is repeated here.
+    map.addControl(new maplibregl.AttributionControl({
+      customAttribution: '<a href="https://maplibre.org/" target="_blank">MapLibre</a>',
+    }), "bottom-right");
+    map.once("idle", () => {
+      const attrib = map.getContainer().querySelector(".maplibregl-ctrl-attrib.maplibregl-compact");
+      if (!attrib) return;
+      attrib.classList.remove("maplibregl-compact-show");
+      attrib.removeAttribute("open");
+    });
     map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
     // Home button — returns the map to the current trip's view
@@ -261,17 +293,41 @@ export default function Map({
 
     const selectedPin = pins.find((p) => p.id === selectedPinId) ?? null;
     const pinsById = new globalThis.Map(pins.map((p) => [p.id, p]));
-    const index = new Supercluster({ radius: CLUSTER_RADIUS, maxZoom: CLUSTER_MAX_ZOOM }).load(
+    // Each cluster carries the lowest stop number inside it, which sets its
+    // place in the keyboard tab order (see placeInStopOrder)
+    const index = new Supercluster({
+      radius: CLUSTER_RADIUS,
+      maxZoom: CLUSTER_MAX_ZOOM,
+      map: (props) => ({ firstStop: props.stopNumber }),
+      reduce: (acc, props) => { acc.firstStop = Math.min(acc.firstStop, props.firstStop); },
+    }).load(
       pins
         .filter((pin) => pin !== selectedPin)
         .map((pin) => ({
           type: "Feature",
-          properties: { pinId: pin.id },
+          properties: { pinId: pin.id, stopNumber: stopNumbers?.[pin.id] ?? Number.MAX_SAFE_INTEGER },
           geometry: { type: "Point", coordinates: pin.lngLat },
         }))
     );
     clusterStateRef.current = { index, pins, pinsById };
     const markers = markersRef.current;
+
+    // Markers are tabbed through in DOM order, and MapLibre appends each new
+    // one at the end, so after a few zooms the order would be whatever came
+    // into view last. Each marker is slotted in by stop number instead
+    // (clusters by their first stop). Moving a node in the DOM drops its
+    // focus, so a focused marker is never moved.
+    const placeInStopOrder = (el, sortKey) => {
+      if (el.dataset.sortKey === String(sortKey)) return;
+      el.dataset.sortKey = String(sortKey);
+      if (el === document.activeElement) return;
+      const parent = el.parentNode;
+      const before = [...parent.children].find(
+        (sibling) => sibling !== el && sibling.dataset.sortKey !== undefined && Number(sibling.dataset.sortKey) > sortKey
+      );
+      if (before) parent.insertBefore(el, before);
+      else if (el !== parent.lastElementChild) parent.appendChild(el);
+    };
 
     const createMarker = (key, lngLat, build) => {
       const el = document.createElement("button");
@@ -330,6 +386,7 @@ export default function Map({
             entry.root.render(<ClusterBadge count={count} />);
             entry.signature = signature;
           }
+          placeInStopOrder(entry.el, feature.properties.firstStop);
           continue;
         }
 
@@ -379,6 +436,7 @@ export default function Map({
         entry.root.render(<MarkerPin icon={pin.icon} number={number} selected={selected} hasPhotos={hasPhotos} />);
         entry.signature = signature;
       }
+      placeInStopOrder(entry.el, number ?? Number.MAX_SAFE_INTEGER);
       return key;
     }
 

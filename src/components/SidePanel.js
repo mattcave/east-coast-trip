@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
+import { trapTabKey } from "./focusTrap";
 
 // The shell shared by the stop panel and the stops list. A bottom sheet on
 // mobile (capped at 85% of the visible height, scrolling inside, with the
@@ -11,7 +12,9 @@ import { X } from "lucide-react";
 //
 // Focus moves into the panel when it opens and back to whatever opened it
 // when it closes. Escape closes it; layers above it (the photo viewer, a
-// cluster list) stop the key before it gets here.
+// cluster list) stop the key before it gets here. As a bottom sheet it's
+// modal (the backdrop covers the map), so Tab stays inside it; docked on
+// desktop it isn't, and Tab can carry on out to the map.
 export default function SidePanel({
   titleId, title, eyebrow = null, headerExtra = null, footer = null, onClose, panelRef, bodyRef, children,
 }) {
@@ -46,6 +49,10 @@ export default function SidePanel({
         role="dialog"
         aria-labelledby={titleId}
         tabIndex={-1}
+        onKeyDown={(e) => {
+          // Same breakpoint as Tailwind's sm, where the sheet docks right
+          if (!window.matchMedia("(min-width: 640px)").matches) trapTabKey(e, dialogRef.current);
+        }}
         className="fixed bottom-0 left-0 right-0 z-30 flex max-h-[85dvh] flex-col bg-white rounded-t-2xl shadow-2xl outline-none sm:top-0 sm:bottom-0 sm:left-auto sm:max-h-none sm:w-[380px] sm:rounded-none lg:w-[440px]"
       >
         {/* Header: always visible */}
@@ -65,7 +72,7 @@ export default function SidePanel({
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="flex-shrink-0 text-gray-400 hover:text-gray-700 transition-colors p-0.5"
+              className="flex-shrink-0 rounded text-gray-400 hover:text-gray-700 transition-colors p-0.5"
             >
               <X size={20} />
             </button>

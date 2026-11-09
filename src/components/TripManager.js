@@ -239,7 +239,7 @@ export default function TripManager({ trips, defaultTripId, pinsByTrip, currentT
                 </div>
                 {deletingId !== trip.id && (
                   <div className="flex items-center gap-1">
-                    <button onClick={() => setEditing(trip)} title="Edit trip" className="p-1.5 text-gray-400 hover:text-blue-600 rounded transition-colors">
+                    <button onClick={() => setEditing(trip)} title="Edit trip" aria-label={`Edit ${trip.name}`} className="p-1.5 text-gray-400 hover:text-blue-600 rounded transition-colors">
                       <Pencil size={14} />
                     </button>
                     {/* The default trip can't be deleted (the API refuses too) */}
@@ -247,6 +247,7 @@ export default function TripManager({ trips, defaultTripId, pinsByTrip, currentT
                       <button
                         onClick={() => { setDeletingId(trip.id); setDeleteError(null); }}
                         title="Delete trip"
+                        aria-label={`Delete ${trip.name}`}
                         className="p-1.5 text-gray-400 hover:text-red-600 rounded transition-colors"
                       >
                         <Trash2 size={14} />

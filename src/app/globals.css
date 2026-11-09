@@ -33,46 +33,22 @@ body {
   top: 52px;
 }
 
+/* Line the controls up with the trip switcher's left edge (left-4). With
+   MapLibre's default 10px margin they stuck out 6px past it. */
+.maplibregl-map .maplibregl-ctrl-top-left .maplibregl-ctrl {
+  margin-left: 16px;
+}
+
+/* The open trip menu drops down over the controls, and its height depends
+   on how many trips there are, so it never covers them exactly: slivers of
+   the buttons showed around its edges. Hide them while it's open. Keyed on
+   the menu button's aria-expanded so no extra state has to be passed up. */
+.trip-map:has(button[aria-haspopup="menu"][aria-expanded="true"]) .maplibregl-ctrl-top-left {
+  visibility: hidden;
+}
+
 /* When a trip shows category filter chips, they sit in a second row under
    the trip switcher (about 30px tall), so the controls move down again */
 .with-category-chips .maplibregl-map .maplibregl-ctrl-top-left {
   top: 96px;
-}
-
-/* Remove default padding so the image can fill edge-to-edge */
-.maplibregl-popup-content {
-  padding: 0;
-  border-radius: 12px;
-  overflow: hidden;
-  position: relative;
-}
-
-/* Style the close button as a small dark pill floating over the image */
-.maplibregl-popup-close-button {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
-  font-size: 16px;
-  line-height: 26px;
-  text-align: center;
-  padding: 0;
-  z-index: 1;
-}
-
-/* Safari renders a focus ring on the MapLibre popup close button on mount.
-   Remove it — the button is still keyboard-accessible, just unstyled. */
-.maplibregl-popup-close-button:focus,
-.maplibregl-popup-close-button:focus-visible {
-  outline: none !important;
-  box-shadow: none !important;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.maplibregl-popup-close-button:hover {
-  background: rgba(0, 0, 0, 0.75);
 }

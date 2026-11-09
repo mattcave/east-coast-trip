@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MapPinOff } from "lucide-react";
+import { MapPinOff, ChevronRight } from "lucide-react";
 import { readTripsConfig } from "@/lib/store";
 import { SITE_NAME, formatTripDates, sortTrips } from "@/lib/trips";
 
@@ -32,12 +32,17 @@ export default async function NotFound() {
               const dates = formatTripDates(trip);
               return (
                 <li key={trip.id}>
+                  {/* Blue name and a chevron so it reads as a link to the
+                      trip; a plain grey outlined box looked like a text field */}
                   <Link
                     href={`/trips/${trip.id}`}
-                    className="block px-3 py-2 rounded-lg border border-gray-100 hover:border-gray-300 hover:bg-gray-50 transition-colors"
+                    className="group flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-50/60 hover:bg-blue-50 transition-colors"
                   >
-                    <span className="block text-sm font-medium text-gray-800">{trip.name}</span>
-                    {dates && <span className="block text-xs text-gray-400">{dates}</span>}
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium text-blue-700 group-hover:text-blue-800">{trip.name}</span>
+                      {dates && <span className="block text-xs text-gray-500">{dates}</span>}
+                    </span>
+                    <ChevronRight size={16} className="flex-shrink-0 text-blue-600 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                   </Link>
                 </li>
               );

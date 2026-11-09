@@ -12,10 +12,10 @@ import { SITE_NAME, formatTripDates, sortTrips, tripCoverImage } from "@/lib/tri
 // TripMap skip that trip's summary popup.
 export default function TripChooser({ trips, pinsByTrip, currentTripId, onPick, onClose }) {
   return (
-    <Sheet onClose={onClose} widthClass="sm:w-[520px]">
+    <Sheet onClose={onClose} labelledBy="trip-chooser-title" widthClass="sm:w-[520px]">
       <div className="p-5 pb-8 sm:p-6">
         <div className="flex items-start justify-between gap-3">
-          <h2 className="font-semibold text-gray-900 text-lg sm:text-xl leading-snug">{SITE_NAME}</h2>
+          <h2 id="trip-chooser-title" className="font-semibold text-gray-900 text-lg sm:text-xl leading-snug">{SITE_NAME}</h2>
           <button
             onClick={onClose}
             aria-label="Close"
