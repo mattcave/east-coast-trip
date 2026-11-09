@@ -74,7 +74,7 @@ export default function ClusterList({ pins, stopNumbers, x, y, containerWidth, c
       ref={rootRef}
       role="dialog"
       aria-label={`${pins.length} stops here`}
-      className="absolute z-10 bg-white rounded-lg shadow-lg border border-gray-200 py-1 max-h-72 overflow-y-auto"
+      className="absolute z-10 bg-paper rounded-lg shadow-lg border border-line py-1 max-h-72 overflow-y-auto"
       style={style}
     >
       <ul>
@@ -86,13 +86,13 @@ export default function ClusterList({ pins, stopNumbers, x, y, containerWidth, c
               <button
                 type="button"
                 onClick={() => onPick(pin)}
-                className="w-full flex items-start gap-2.5 px-3 py-2 text-left hover:bg-gray-50"
+                className="w-full flex items-start gap-2.5 px-3 py-2 text-left hover:bg-line/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
               >
-                <span className="w-5 flex-shrink-0 pt-1 text-right text-xs font-semibold text-gray-400 tabular-nums">{number}</span>
+                <span className="w-5 flex-shrink-0 pt-1 text-right text-xs font-semibold text-muted tabular-nums">{number}</span>
                 <span className="w-6 h-6 flex-shrink-0 rounded-full flex items-center justify-center" style={{ background: color }} title={category}>
                   <Icon size={12} color="white" aria-hidden="true" />
                 </span>
-                <span className="min-w-0 flex-1 pt-0.5 line-clamp-2 text-sm font-medium leading-snug text-gray-800">{pin.label}</span>
+                <span className="min-w-0 flex-1 pt-0.5 line-clamp-2 text-sm font-medium leading-snug text-ink">{pin.label}</span>
               </button>
             </li>
           );

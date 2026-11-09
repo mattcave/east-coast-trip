@@ -146,6 +146,14 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
     [showOverview, trips, pinsByTrip, trip, tripPins]
   );
   const viewKey = showOverview ? OVERVIEW : trip.id;
+  // Behind the chooser at "/": every trip's stops as small dots, so the map
+  // isn't empty there (see Map's backgroundPoints)
+  const backgroundPoints = useMemo(
+    () => (showOverview
+      ? Object.values(pinsByTrip).flat().map((p) => p.lngLat).filter((c) => Array.isArray(c) && c.length === 2)
+      : null),
+    [showOverview, pinsByTrip]
+  );
 
   const [modalOpen, setModalOpen] = useState(false);
   const [placementMode, setPlacementMode] = useState(false);
@@ -164,6 +172,10 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   const panelRef = useRef(null);
   // The top bar (trip menu, Stops, chips), measured for the same reason
   const topBarRef = useRef(null);
+  // The trip summary or chooser sheet, measured to fit the trip above it
+  const sheetRef = useRef(null);
+  // The stop whose marker is lit up while Previous/Next is hovered
+  const [previewPinId, setPreviewPinId] = useState(null);
   const isMobile = useIsMobile();
   // Only one thing uses the right-hand panel at a time: a stop, the stops
   // list, or the admin editor. Opening one closes the others.
@@ -309,6 +321,30 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
     window.history.replaceState(null, "", `${pathname}${nextSearch}${hash}`);
   }, [openStopId, isRoot, isUnknownTrip]);
 
+  // On a phone, the trip summary and the chooser are bottom sheets that
+  // cover the lower part of the map, so the trip (or, at "/", every trip's
+  // stops) is fitted into the strip above the sheet instead of the whole
+  // screen, where most stops sat behind it. When the sheet closes the view
+  // fits the whole map again, unless a stop opened as it closed (the
+  // summary's "Start at stop 1"), which moves the map itself.
+  const fittedAboveSheetRef = useRef(false);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (overlay && isMobile) {
+      if (!sheetRef.current) return;
+      fittedAboveSheetRef.current = true;
+      flyToView(map, homeView, { inset: measurePanelInset(map, sheetRef.current, topBarRef.current) });
+      return;
+    }
+    if (!overlay && fittedAboveSheetRef.current) {
+      fittedAboveSheetRef.current = false;
+      if (!selectedPinId) flyToView(map, homeView);
+    }
+  // selectedPinId is read, not watched: this is about the sheet changing
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overlay, isMobile, homeView]);
+
   // Fly to the new view when the trip changes, or when the root overview
   // opens or closes. The map already starts at the initial view, so that one
   // is skipped.
@@ -436,14 +472,25 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
     });
   }, []);
   const clearCategories = useCallback(() => setCategoryFilter(new Set()), []);
-  const goToPrev = useCallback(() => { if (prevStop) setSelectedPinId(prevStop.id); }, [prevStop]);
-  const goToNext = useCallback(() => { if (nextStop) setSelectedPinId(nextStop.id); }, [nextStop]);
+  // Stepping clears the hover preview: the button stays under the pointer
+  // but now leads somewhere else
+  const goToPrev = useCallback(() => {
+    if (!prevStop) return;
+    setPreviewPinId(null);
+    setSelectedPinId(prevStop.id);
+  }, [prevStop]);
+  const goToNext = useCallback(() => {
+    if (!nextStop) return;
+    setPreviewPinId(null);
+    setSelectedPinId(nextStop.id);
+  }, [nextStop]);
   const getZoom = useCallback(() => mapRef.current?.getZoom(), []);
 
   // The chips row only shows for trips with two or more categories. It's
   // hidden while a stop's sheet is open on a phone, where the strip of map
   // above the sheet is small enough already.
-  const showChips = categories.length > 1 && !placementMode && !(isMobile && selectedPin);
+  // Same while the summary or chooser sheet covers the map on a phone.
+  const showChips = categories.length > 1 && !placementMode && !(isMobile && (selectedPin || overlay));
 
   if (isUnknownTrip) return null;
 
@@ -468,9 +515,9 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
                 type="button"
                 onClick={stopsListOpen ? closeStopsList : openStopsList}
                 aria-expanded={stopsListOpen}
-                className="flex flex-shrink-0 items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-800 text-sm font-medium px-3 py-2 rounded-lg shadow-md border border-gray-200 transition-colors"
+                className="press flex flex-shrink-0 items-center gap-1.5 bg-paper hover:bg-line text-ink text-sm font-medium px-3 py-2 rounded-lg shadow-md border border-line"
               >
-                <List size={16} className="text-gray-500" aria-hidden="true" />
+                <List size={16} className="text-muted" aria-hidden="true" />
                 Stops
               </button>
             )}
@@ -501,7 +548,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
       {isAuthenticated && !placementMode && (
         <button
           onClick={() => { closePanels(); setModalOpen(true); }}
-          className="absolute top-4 right-4 z-10 flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium px-3 py-2 rounded-lg shadow-md border border-gray-200 transition-colors"
+          className="press absolute top-4 right-4 z-10 flex items-center gap-2 bg-paper hover:bg-line text-ink text-sm font-medium px-3 py-2 rounded-lg shadow-md border border-line"
         >
           <Pencil size={14} />
           Admin
@@ -517,7 +564,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
           onClick={() => setOverlay(isRoot ? "chooser" : "summary")}
           aria-label="About this trip"
           title="About this trip"
-          className="absolute top-4 right-4 z-10 flex items-center justify-center w-9 h-9 bg-white hover:bg-gray-50 text-gray-500 hover:text-gray-700 rounded-full shadow-md border border-gray-200 transition-colors"
+          className="press absolute top-4 right-4 z-10 flex items-center justify-center w-9 h-9 bg-paper hover:bg-line text-muted hover:text-ink rounded-full shadow-md border border-line"
         >
           <HelpCircle size={18} />
         </button>
@@ -526,6 +573,8 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
       <Map
         mapRef={mapRef}
         pins={mapPins}
+        previewPinId={selectedPin ? previewPinId : null}
+        backgroundPoints={backgroundPoints}
         stopNumbers={stopNumbers}
         selectedPinId={selectedPin?.id ?? null}
         homeView={homeView}
@@ -541,7 +590,13 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
         <TripSummary
           trip={trip}
           pins={tripPins}
+          sheetRef={sheetRef}
           onClose={closeSummary}
+          onStart={stops.length > 0 ? () => {
+            closeSummary();
+            setOpenedFromList(false);
+            setSelectedPinId(stops[0].id);
+          } : null}
           onShowAllTrips={trips.length > 1 ? () => { closeSummary(); setOverlay("chooser"); } : null}
         />
       )}
@@ -550,6 +605,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
         <TripChooser
           trips={trips}
           pinsByTrip={pinsByTrip}
+          sheetRef={sheetRef}
           currentTripId={isRoot ? null : trip.id}
           onPick={pickTripFromChooser}
           onClose={() => setOverlay(null)}
@@ -604,6 +660,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
           onClose={closeStop}
           getZoom={getZoom}
           panelRef={panelRef}
+          onPreviewStop={setPreviewPinId}
           keyboardEnabled={!modalOpen && !placementMode}
           onEdit={isAuthenticated ? (id) => {
             setSelectedPinId(null);

@@ -138,17 +138,42 @@ export function prefersReducedMotion() {
 
 // Every camera move in the app goes through flyToView or easeToPoint, so
 // reduced motion is handled in one place.
-export function flyToView(map, view) {
+//
+// `inset` fits the view into part of the map: the strip above a mobile
+// sheet that covers the bottom of it ({ top, bottom } in px, measured by
+// the caller). Without it the view fits the whole map.
+export function flyToView(map, view, { inset } = {}) {
   if (!map || !view) return;
   const animate = !prefersReducedMotion();
-  if (view.bounds) map.fitBounds(view.bounds, { ...FIT_OPTIONS, animate });
-  else if (animate) map.flyTo({ center: view.center, zoom: view.zoom });
-  else map.jumpTo({ center: view.center, zoom: view.zoom });
+  // MapLibre keeps padding from an earlier easeTo and adds it to this fit,
+  // which would squeeze the trip into a corner. Clear it first; that
+  // doesn't visibly move the map (see setMapInset).
+  const current = map.getPadding?.();
+  if (current && Object.values(current).some((v) => v > 0)) setMapInset(map);
+  // An inset that leaves too little map to fit anything into (a tall sheet
+  // on a short phone) is dropped: MapLibre refuses a fit whose padding is
+  // bigger than the map, and leaves the view where it was.
+  const height = map.getCanvas?.().clientHeight ?? Infinity;
+  if (inset && (inset.top ?? 0) + (inset.bottom ?? 0) + 40 + 80 > height) inset = undefined;
+  if (view.bounds) {
+    const padding = inset
+      ? { ...FIT_OPTIONS.padding, top: (inset.top ?? 0) + 16, bottom: (inset.bottom ?? 0) + 24 }
+      : FIT_OPTIONS.padding;
+    map.fitBounds(view.bounds, { ...FIT_OPTIONS, padding, animate });
+    return;
+  }
+  // A single spot: padding moves the centre into the uncovered strip. It's
+  // always passed, so a fit without an inset clears an earlier one.
+  const options = { center: view.center, zoom: view.zoom, padding: { ...NO_INSET, ...inset } };
+  if (animate) map.flyTo(options);
+  else map.jumpTo(options);
 }
 
 // Centres a point in the part of the map that isn't covered by a panel.
 // `inset` is the map padding ({ top, right, bottom, left }) for the panel;
 // omit it to keep the current padding. `zoom` is optional.
+const NO_INSET = { top: 0, right: 0, bottom: 0, left: 0 };
+
 export function easeToPoint(map, lngLat, { inset, zoom } = {}) {
   if (!map || !lngLat) return;
   const options = { center: lngLat };
@@ -157,8 +182,6 @@ export function easeToPoint(map, lngLat, { inset, zoom } = {}) {
   if (prefersReducedMotion()) map.jumpTo(options);
   else map.easeTo(options);
 }
-
-const NO_INSET = { top: 0, right: 0, bottom: 0, left: 0 };
 
 // Changes the map's padding without visibly moving the map. MapLibre keeps
 // padding passed to easeTo/flyTo and adds it to every later fitBounds, so
@@ -189,6 +212,36 @@ export function initialMapOptions(view) {
 // a YYYY-MM-DD date never shifts a month across a timezone boundary
 const monthYear = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
 const monthOnly = new Intl.DateTimeFormat("en-US", { month: "long", timeZone: "UTC" });
+
+const SHORT_MONTH = new Intl.DateTimeFormat("en-GB", { month: "short", timeZone: "UTC" });
+const parseDay = (date) => {
+  if (!date || !DATE_RE.test(date)) return null;
+  const d = new Date(`${date}T00:00:00Z`);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+// "Sept" is what en-GB gives for September; the facts line wants "Sep"
+const shortMonth = (d) => SHORT_MONTH.format(d).slice(0, 3);
+
+// The dates in a trip's facts line, by the day: "14–31 Aug 2026" within a
+// month, "28 Jul – 3 Aug 2026" across months, "28 Dec 2025 – 3 Jan 2026"
+// across years. With only one date (usually a planned trip with just a
+// start), the month and year: "Aug 2026". Null with neither. UTC, for the
+// same reason as formatTripDates.
+export function formatTripDayRange(trip) {
+  const start = parseDay(trip?.startDate);
+  const end = parseDay(trip?.endDate);
+  if (!start && !end) return null;
+  if (!start || !end) {
+    const only = start ?? end;
+    return `${shortMonth(only)} ${only.getUTCFullYear()}`;
+  }
+  const [sd, sm, sy] = [start.getUTCDate(), shortMonth(start), start.getUTCFullYear()];
+  const [ed, em, ey] = [end.getUTCDate(), shortMonth(end), end.getUTCFullYear()];
+  if (sy !== ey) return `${sd} ${sm} ${sy} – ${ed} ${em} ${ey}`;
+  if (sm !== em) return `${sd} ${sm} – ${ed} ${em} ${ey}`;
+  if (sd === ed) return `${sd} ${sm} ${sy}`;
+  return `${sd}–${ed} ${sm} ${sy}`;
+}
 
 // "July 2026", "July – August 2026", or "December 2025 – January 2026".
 // Month-level on purpose: it's a summary line, not an itinerary.

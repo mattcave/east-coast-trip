@@ -29,35 +29,34 @@ function isTypingTarget(el) {
   return el instanceof HTMLElement && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 }
 
-// Photo frame height. Grows on large screens, but is capped at a share of
-// the viewport so the story below stays visible on short laptop screens.
-const FRAME_HEIGHT = "h-52 sm:h-60 lg:h-[min(320px,40vh)]";
-
-// One photo in the fixed-height frame, as a button that opens the
-// full-screen viewer. Uploads keep their original aspect ratio, so the
-// photo is shown whole (object-contain) over a blurred, zoomed copy of
-// itself that fills any letterbox space — a portrait shot isn't cropped,
-// and a ~3:2 landscape shot simply covers the backdrop.
+// One photo in the panel's 4:3 frame, as a button that opens the
+// full-screen viewer. The frame is filled edge to edge (object-cover) so the
+// photo leads the panel; the viewer shows the whole photo (object-contain).
+// On devices with a mouse it grows slightly inside its frame on hover
+// (Tailwind's hover variants only apply where hover exists).
 function Slide({ src, alt, onOpen, className = "" }) {
   return (
     <button
       type="button"
       onClick={onOpen}
       aria-label={`${alt}, open full screen`}
-      className={`relative block w-full h-full flex-shrink-0 overflow-hidden bg-gray-900 cursor-zoom-in focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-white ${className}`}
+      className={`group relative block h-full w-full flex-shrink-0 overflow-hidden bg-ink/10 cursor-zoom-in focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-white ${className}`}
     >
-      <img src={src} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl brightness-75" />
-      <img src={src} alt={alt} className="relative w-full h-full object-contain" />
+      <img
+        src={src}
+        alt={alt}
+        className="h-full w-full object-cover motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-out motion-safe:group-hover:scale-[1.03]"
+      />
     </button>
   );
 }
 
 // Swipeable/scrollable photo carousel. A single photo renders with no
-// carousel chrome (dots/arrows); multiple photos get a horizontal
-// scroll-snap strip so it works natively with touch swipe on mobile and
-// click-drag or the arrow buttons on desktop, without any extra library.
-// The keyboard arrows belong to stop stepping now; photos are stepped with
-// the buttons, swipe, or the full-screen viewer.
+// carousel chrome. Several photos get a horizontal scroll-snap strip (touch
+// swipe on mobile, the arrows on desktop) with a "1 / 3" counter, and on
+// desktop a row of thumbnails underneath. The keyboard arrows belong to
+// stop stepping; photos are stepped with the buttons, swipe, the
+// thumbnails or the full-screen viewer.
 function PhotoCarousel({ images, alt, onOpen, scrollRequest }) {
   const [index, setIndex] = useState(0);
   const scrollerRef = useRef(null);
@@ -65,7 +64,12 @@ function PhotoCarousel({ images, alt, onOpen, scrollRequest }) {
   const scrollToIndex = (i, smooth = true) => {
     const scroller = scrollerRef.current;
     if (!scroller) return;
-    scroller.scrollTo({ left: i * scroller.clientWidth, behavior: smooth && !prefersReducedMotion() ? "smooth" : "instant" });
+    const animate = smooth && !prefersReducedMotion();
+    scroller.scrollTo({ left: i * scroller.clientWidth, behavior: animate ? "smooth" : "instant" });
+    // An instant jump updates the counter now rather than waiting for the
+    // scroll event, which a busy phone can deliver a beat late (the counter
+    // briefly showed the photo the viewer was opened on)
+    if (!animate) setIndex(i);
   };
 
   // Coming back from the full-screen viewer: show the photo it was on.
@@ -75,6 +79,7 @@ function PhotoCarousel({ images, alt, onOpen, scrollRequest }) {
   // This runs after the viewer's unmount cleanup, so it has the last word.
   useEffect(() => {
     if (!scrollRequest) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: the counter follows the scroll position this effect has just set
     scrollToIndex(scrollRequest.index, false);
     scrollerRef.current?.children[scrollRequest.index]?.focus({ preventScroll: true });
   }, [scrollRequest]);
@@ -89,62 +94,73 @@ function PhotoCarousel({ images, alt, onOpen, scrollRequest }) {
 
   if (images.length === 1) {
     return (
-      <div className={FRAME_HEIGHT}>
+      <div className="aspect-[4/3] w-full">
         <Slide src={images[0]} alt={alt} onOpen={() => onOpen(0)} />
       </div>
     );
   }
 
   return (
-    <div className="relative">
-      <div
-        ref={scrollerRef}
-        onScroll={handleScroll}
-        className={`flex ${FRAME_HEIGHT} overflow-x-auto snap-x snap-mandatory motion-safe:scroll-smooth [&::-webkit-scrollbar]:hidden`}
-        style={{ scrollbarWidth: "none" }}
-      >
+    <div>
+      <div className="relative">
+        <div
+          ref={scrollerRef}
+          onScroll={handleScroll}
+          className="flex aspect-[4/3] w-full overflow-x-auto snap-x snap-mandatory motion-safe:scroll-smooth [&::-webkit-scrollbar]:hidden"
+          style={{ scrollbarWidth: "none" }}
+        >
+          {images.map((src, i) => (
+            <Slide
+              key={i}
+              src={src}
+              alt={`${alt} photo ${i + 1} of ${images.length}`}
+              onOpen={() => onOpen(i)}
+              className="snap-center"
+            />
+          ))}
+        </div>
+
+        {index > 0 && (
+          <button
+            type="button"
+            onClick={() => scrollToIndex(index - 1)}
+            aria-label="Previous photo"
+            className="press absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1"
+          >
+            <ChevronLeft size={18} />
+          </button>
+        )}
+        {index < images.length - 1 && (
+          <button
+            type="button"
+            onClick={() => scrollToIndex(index + 1)}
+            aria-label="Next photo"
+            className="press absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1"
+          >
+            <ChevronRight size={18} />
+          </button>
+        )}
+
+        <div className="absolute bottom-2 right-2 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white tabular-nums pointer-events-none">
+          {index + 1} / {images.length}
+        </div>
+      </div>
+
+      {/* Desktop only: on a phone the counter and swipe do this job */}
+      <div className="hidden gap-2 overflow-x-auto px-5 pt-3 sm:flex" role="group" aria-label="Photos">
         {images.map((src, i) => (
-          <Slide
+          <button
             key={i}
-            src={src}
-            alt={`${alt} photo ${i + 1} of ${images.length}`}
-            onOpen={() => onOpen(i)}
-            className="snap-center"
-          />
-        ))}
-      </div>
-
-      {index > 0 && (
-        <button
-          type="button"
-          onClick={() => scrollToIndex(index - 1)}
-          aria-label="Previous photo"
-          className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1 transition-colors"
-        >
-          <ChevronLeft size={18} />
-        </button>
-      )}
-      {index < images.length - 1 && (
-        <button
-          type="button"
-          onClick={() => scrollToIndex(index + 1)}
-          aria-label="Next photo"
-          className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1 transition-colors"
-        >
-          <ChevronRight size={18} />
-        </button>
-      )}
-
-      <div className="absolute bottom-2 right-2 rounded-full bg-black/50 px-2 py-0.5 text-[11px] font-medium text-white tabular-nums pointer-events-none">
-        {index + 1} / {images.length}
-      </div>
-
-      <div className="absolute bottom-2 inset-x-0 flex justify-center gap-1.5 pointer-events-none">
-        {images.map((_, i) => (
-          <span
-            key={i}
-            className={`w-1.5 h-1.5 rounded-full shadow ${i === index ? "bg-white" : "bg-white/50"}`}
-          />
+            type="button"
+            onClick={() => scrollToIndex(i)}
+            aria-label={`Show photo ${i + 1} of ${images.length}`}
+            aria-current={i === index ? "true" : undefined}
+            className={`press h-14 w-14 flex-shrink-0 overflow-hidden rounded-md ${
+              i === index ? "ring-2 ring-accent ring-offset-2 ring-offset-paper" : "opacity-80 hover:opacity-100"
+            }`}
+          >
+            <img src={src} alt="" className="h-full w-full object-cover" />
+          </button>
         ))}
       </div>
     </div>
@@ -182,22 +198,22 @@ function WikiSection({ pin }) {
   const extract = wiki?.extract?.split("\n")[0];
 
   return (
-    <div className="mt-3 pt-3 border-t border-gray-100">
+    <div className="mt-4 pt-3 border-t border-line">
       {loading && (
         <div className="space-y-2">
-          <div className="h-3 bg-gray-200 rounded animate-pulse w-full" />
-          <div className="h-3 bg-gray-200 rounded animate-pulse w-4/5" />
-          <div className="h-3 bg-gray-200 rounded animate-pulse w-3/5" />
+          <div className="h-3 bg-line rounded motion-safe:animate-pulse w-full" />
+          <div className="h-3 bg-line rounded motion-safe:animate-pulse w-4/5" />
+          <div className="h-3 bg-line rounded motion-safe:animate-pulse w-3/5" />
         </div>
       )}
       {!loading && wiki && (
         <>
-          <p className="text-sm text-gray-500 leading-relaxed line-clamp-3">{extract}</p>
+          <p className="text-sm text-muted leading-relaxed line-clamp-3">{extract}</p>
           <a
             href={wiki.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+            className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-hover hover:underline underline-offset-2"
           >
             Read more on Wikipedia →
           </a>
@@ -253,7 +269,7 @@ function CopyLinkButton({ href }) {
     <button
       type="button"
       onClick={copy}
-      className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+      className="press inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-hover hover:underline underline-offset-2"
     >
       {status === "copied" ? <Check size={12} aria-hidden="true" /> : <Link2 size={12} aria-hidden="true" />}
       <span aria-live="polite">
@@ -263,20 +279,26 @@ function CopyLinkButton({ href }) {
   );
 }
 
-function StepButton({ direction, target, onClick }) {
+// `onPreview(id | null)` lights up the target stop's marker while the
+// button is hovered or focused, so the visitor sees where they're going
+function StepButton({ direction, target, onClick, onPreview }) {
   const isPrev = direction === "prev";
   const Icon = isPrev ? ChevronLeft : ChevronRight;
   return (
     <button
       type="button"
       onClick={onClick}
+      onMouseEnter={() => target && onPreview?.(target.id)}
+      onMouseLeave={() => onPreview?.(null)}
+      onFocus={() => target && onPreview?.(target.id)}
+      onBlur={() => onPreview?.(null)}
       disabled={!target}
       aria-label={target ? `${isPrev ? "Previous" : "Next"} stop: ${target.label}` : `No ${isPrev ? "previous" : "next"} stop`}
-      className={`flex min-w-0 flex-1 items-center gap-1 rounded-lg px-2 py-2 text-sm font-medium transition-colors text-blue-600 hover:bg-blue-50 hover:text-blue-800 disabled:text-gray-300 disabled:hover:bg-transparent ${isPrev ? "justify-start" : "justify-end"}`}
+      className={`press flex min-w-0 flex-1 items-center gap-1 rounded-lg px-2 py-2 text-sm font-medium text-accent hover:bg-line/60 hover:text-accent-hover disabled:text-muted/40 disabled:hover:bg-transparent ${isPrev ? "justify-start" : "justify-end"}`}
     >
       {isPrev && <Icon size={18} className="flex-shrink-0" />}
       <span className="min-w-0 text-left">
-        <span className={`block text-[11px] font-normal ${target ? "text-gray-400" : "text-gray-300"} ${isPrev ? "" : "text-right"}`}>
+        <span className={`block text-[11px] font-normal ${target ? "text-muted" : "text-muted/40"} ${isPrev ? "" : "text-right"}`}>
           {isPrev ? "Previous stop" : "Next stop"}
         </span>
         <span className={`block truncate ${isPrev ? "" : "text-right"}`}>{target?.label ?? "—"}</span>
@@ -291,7 +313,7 @@ function StepButton({ direction, target, onClick }) {
 // while it's open (when `keyboardEnabled`); SidePanel handles Escape.
 export default function PinPopup({
   pin, stopNumber, stopCount, prev, next, onPrev, onNext, onClose, onEdit, onBackToList,
-  shareHref, getZoom, panelRef, keyboardEnabled = true,
+  shareHref, getZoom, panelRef, keyboardEnabled = true, onPreviewStop,
 }) {
   const [viewer, setViewer] = useState(null); // { index } while the full-screen viewer is open
   const [scrollRequest, setScrollRequest] = useState(null);
@@ -341,9 +363,9 @@ export default function PinPopup({
   // Stop stepping, always visible. The bottom padding keeps it clear of the
   // iPhone home indicator.
   const footer = (prev || next) ? (
-    <div className="flex flex-shrink-0 items-stretch gap-2 border-t border-gray-100 px-2 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-      <StepButton direction="prev" target={prev} onClick={onPrev} />
-      <StepButton direction="next" target={next} onClick={onNext} />
+    <div className="flex flex-shrink-0 items-stretch gap-2 border-t border-line px-2 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <StepButton direction="prev" target={prev} onClick={onPrev} onPreview={onPreviewStop} />
+      <StepButton direction="next" target={next} onClick={onNext} onPreview={onPreviewStop} />
     </div>
   ) : null;
 
@@ -357,7 +379,7 @@ export default function PinPopup({
           <button
             type="button"
             onClick={onBackToList}
-            className="-mt-1 mb-2 ml-4 sm:ml-5 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+            className="press -mt-1 mb-2 ml-4 sm:ml-5 inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-hover hover:underline underline-offset-2"
           >
             <List size={12} />
             All stops
@@ -380,17 +402,17 @@ export default function PinPopup({
 
         <div className="p-4 sm:p-5">
           {pin.description && (
-            <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
+            <p className="font-serif text-[17px] sm:text-[18px] leading-[1.6] text-ink">
               {pin.description}
             </p>
           )}
 
-          <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 ${pin.description ? "mt-2" : ""}`}>
+          <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 ${pin.description ? "mt-3" : ""}`}>
             <a
               href={googleMapsUrl(pin.lngLat, getZoom?.())}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+              className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-hover hover:underline underline-offset-2"
             >
               <ExternalLink size={12} />
               View on Google Maps
@@ -405,7 +427,7 @@ export default function PinPopup({
             <button
               type="button"
               onClick={() => onEdit(pin.id)}
-              className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+              className="press mt-3 text-sm font-medium text-accent hover:text-accent-hover hover:underline underline-offset-2"
             >
               Edit
             </button>

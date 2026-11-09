@@ -1,41 +1,50 @@
 "use client";
 
 import Link from "next/link";
-import { X, Map as MapIcon } from "lucide-react";
+import { X } from "lucide-react";
 import Sheet from "./Sheet";
-import { SITE_NAME, formatTripDates, sortTrips, tripCoverImage } from "@/lib/trips";
+import { SITE_NAME, formatTripDayRange, sortTrips, tripCoverImage } from "@/lib/trips";
+
+// The small tag a trip without pins shows in place of its facts line
+function plannedTag() {
+  return "Planned";
+}
 
 // Lists every trip as a card. Shown on each visit to the site root, and from
 // the trip switcher's "All trips" item or a trip summary's "other trips" link.
 // Picking a card navigates to /trips/<id>; the map stays mounted (see the
 // (map) layout) and TripMap flies to the new trip. onPick(tripId) lets
 // TripMap skip that trip's summary popup.
-export default function TripChooser({ trips, pinsByTrip, currentTripId, onPick, onClose }) {
+//
+// A trip with stops gets its cover photo across the top of the card and a
+// facts line ("14–31 Aug 2026 · 45 stops"). A trip without any yet has
+// nothing to show, so it's a text-only card with a "Planned" tag.
+export default function TripChooser({ trips, pinsByTrip, currentTripId, sheetRef, onPick, onClose }) {
   return (
-    <Sheet onClose={onClose} labelledBy="trip-chooser-title" widthClass="sm:w-[520px]">
-      <div className="p-5 pb-8 sm:p-6">
+    <Sheet onClose={onClose} labelledBy="trip-chooser-title" sheetRef={sheetRef} widthClass="sm:w-[520px]">
+      <div className="p-5 pt-6 pb-8 sm:p-6">
         <div className="flex items-start justify-between gap-3">
-          <h2 id="trip-chooser-title" className="font-semibold text-gray-900 text-lg sm:text-xl leading-snug">{SITE_NAME}</h2>
+          <h2 id="trip-chooser-title" className="font-serif font-semibold text-ink text-[26px] sm:text-[30px] leading-[1.15]">{SITE_NAME}</h2>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="flex-shrink-0 text-gray-400 hover:text-gray-700 transition-colors p-0.5"
+            className="press flex-shrink-0 rounded-full p-1 text-muted hover:text-ink hover:bg-line"
           >
             <X size={20} />
           </button>
         </div>
 
-        <p className="mt-2 text-sm sm:text-base text-gray-600 leading-relaxed">
+        <p className="mt-2 text-sm sm:text-base text-muted leading-relaxed">
           Every road trip we&apos;ve taken, pinned on a map - with photos and a few
           words from each stop. Pick a trip to start exploring.
         </p>
 
-        <ul className="mt-4 flex flex-col gap-2">
+        <ul className="mt-5 flex flex-col gap-4">
           {sortTrips(trips).map((trip) => {
             const pins = pinsByTrip[trip.id] ?? [];
             const cover = tripCoverImage(pins);
-            const dates = formatTripDates(trip);
-            const meta = [dates, `${pins.length} ${pins.length === 1 ? "stop" : "stops"}`].filter(Boolean).join(" · ");
+            const dates = formatTripDayRange(trip);
+            const facts = [dates, `${pins.length} ${pins.length === 1 ? "stop" : "stops"}`].filter(Boolean).join(" · ");
             const isCurrent = trip.id === currentTripId;
 
             return (
@@ -46,22 +55,24 @@ export default function TripChooser({ trips, pinsByTrip, currentTripId, onPick, 
                   // trip that's already showing (the URL doesn't change)
                   onClick={() => onPick(trip.id)}
                   aria-current={isCurrent ? "page" : undefined}
-                  className={`flex items-center gap-3 p-2 rounded-xl border transition-colors ${
-                    isCurrent ? "border-blue-300 bg-blue-50/50" : "border-gray-100 hover:border-gray-300 hover:bg-gray-50"
+                  className={`group block overflow-hidden rounded-xl border bg-white shadow-sm transition-[box-shadow,transform,border-color] duration-200 hover:shadow-lg motion-safe:hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                    isCurrent ? "border-accent ring-1 ring-accent" : "border-line"
                   }`}
                 >
-                  {cover ? (
-                    <img src={cover} alt="" className="w-16 h-16 flex-shrink-0 rounded-lg object-cover bg-gray-100" />
-                  ) : (
-                    <span className="w-16 h-16 flex-shrink-0 rounded-lg bg-gray-100 flex items-center justify-center">
-                      <MapIcon size={22} className="text-gray-400" />
-                    </span>
+                  {pins.length > 0 && cover && (
+                    <img src={cover} alt="" className="aspect-video w-full object-cover bg-line" />
                   )}
-                  <span className="min-w-0 flex-1">
-                    <span className="block font-medium text-gray-900 truncate">{trip.name}</span>
-                    <span className="block text-xs text-gray-400">{meta}</span>
+                  <span className="block p-4">
+                    <span className="block font-serif font-semibold text-[20px] leading-tight text-ink">{trip.name}</span>
+                    {pins.length > 0 ? (
+                      <span className="mt-1 block text-xs font-medium text-muted">{facts}</span>
+                    ) : (
+                      <span className="mt-1.5 inline-block rounded-full bg-line px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-ink">
+                        {plannedTag(trip)}
+                      </span>
+                    )}
                     {trip.description && (
-                      <span className="mt-0.5 block text-sm text-gray-600 line-clamp-2">{trip.description}</span>
+                      <span className="mt-1.5 block text-sm text-muted leading-relaxed line-clamp-2">{trip.description}</span>
                     )}
                   </span>
                 </Link>

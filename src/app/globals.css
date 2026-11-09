@@ -10,6 +10,34 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-newsreader);
+}
+
+/* The coastal palette used by everything visitors see (the admin editor
+   keeps Tailwind's grays and blue). Text pairs meet WCAG AA: accent on
+   paper is 5.6:1, muted on paper 5.2:1. */
+@theme {
+  --color-ink: #1f2a2e;
+  --color-muted: #5b6b70;
+  --color-paper: #fbf8f3;
+  --color-line: #e7e1d8;
+  --color-accent: #1f6f6b;
+  --color-accent-hover: #185955;
+}
+
+/* Buttons shrink a touch while pressed. Skipped for visitors who ask for
+   less motion; their colour changes on hover still apply. */
+@utility press {
+  transition-property: color, background-color, border-color, box-shadow, transform;
+  transition-duration: 120ms;
+  &:active {
+    transform: scale(0.98);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    &:active {
+      transform: none;
+    }
+  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -19,10 +47,26 @@
   }
 }
 
+/* No font-family here: an Arial rule on body used to override the Geist
+   font loaded in layout.js, so it was never used. Body text gets font-sans
+   (Geist) from the class on <body>. */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Map markers grow a little on hover, or while the visitor hovers the
+   Previous/Next button that leads to them (Map sets data-preview). The
+   selected marker is already enlarged, so it's left alone. The inner
+   element is scaled because MapLibre owns the marker element's transform. */
+@media (prefers-reduced-motion: no-preference) {
+  .map-marker > [data-marker-face] {
+    transition: transform 150ms ease-out;
+  }
+  .map-marker:hover > [data-marker-face]:not([data-selected]),
+  .map-marker[data-preview] > [data-marker-face]:not([data-selected]) {
+    transform: scale(1.1);
+  }
 }
 
 /* The trip switcher pill sits in the top-left corner (top-4, ~36px tall), so

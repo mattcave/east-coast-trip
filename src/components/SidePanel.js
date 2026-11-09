@@ -128,12 +128,12 @@ export default function SidePanel({
         onKeyDown={(e) => {
           if (isMobileViewport()) trapTabKey(e, dialogRef.current);
         }}
-        className={`fixed bottom-0 left-0 right-0 z-30 flex ${mobileSnap && !expanded ? "max-h-[55dvh]" : "max-h-[85dvh]"} motion-safe:transition-[max-height] motion-safe:duration-200 flex-col bg-white rounded-t-2xl shadow-2xl outline-none sm:top-0 sm:bottom-0 sm:left-auto sm:max-h-none sm:w-[380px] sm:rounded-none lg:w-[440px]`}
+        className={`fixed bottom-0 left-0 right-0 z-30 flex ${mobileSnap && !expanded ? "max-h-[55dvh]" : "max-h-[85dvh]"} motion-safe:transition-[max-height] motion-safe:duration-200 flex-col bg-paper text-ink rounded-t-2xl shadow-2xl outline-none sm:top-0 sm:bottom-0 sm:left-auto sm:max-h-none sm:w-[380px] sm:rounded-none lg:w-[520px]`}
       >
         {/* Header: always visible. With mobileSnap it's also the drag
             area, so touch gestures on it go to the drag, not the page. */}
         <div
-          className={`flex-shrink-0 border-b border-gray-100 ${mobileSnap ? "touch-none sm:touch-auto" : ""}`}
+          className={`flex-shrink-0 border-b border-line ${mobileSnap ? "touch-none sm:touch-auto" : ""}`}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={endDrag}
@@ -149,17 +149,17 @@ export default function SidePanel({
               aria-label={expanded ? "Show less of this stop" : "Show more of this stop"}
               className="flex w-full justify-center pt-2.5 pb-1 sm:hidden cursor-grab"
             >
-              <span className="w-10 h-1 bg-gray-300 rounded-full" />
+              <span className="w-10 h-1 bg-line rounded-full" />
             </button>
           ) : (
             <div className="flex justify-center pt-2.5 pb-1 sm:hidden">
-              <div className="w-10 h-1 bg-gray-300 rounded-full" />
+              <div className="w-10 h-1 bg-line rounded-full" />
             </div>
           )}
           <div className="flex items-start justify-between gap-3 px-4 pb-3 pt-1 sm:px-5 sm:pt-4">
             <div className="min-w-0">
-              {eyebrow && <p className="mb-0.5 text-xs font-medium text-gray-400">{eyebrow}</p>}
-              <h2 id={titleId} className="font-semibold text-gray-900 text-lg sm:text-xl leading-snug">
+              {eyebrow && <p className="mb-1 text-xs font-medium text-muted">{eyebrow}</p>}
+              <h2 id={titleId} className="font-serif font-semibold text-ink text-[22px] sm:text-[26px] leading-[1.15]">
                 {title}
               </h2>
             </div>
@@ -167,7 +167,7 @@ export default function SidePanel({
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="flex-shrink-0 rounded text-gray-400 hover:text-gray-700 transition-colors p-0.5"
+              className="press flex-shrink-0 rounded text-muted hover:text-ink p-0.5"
             >
               <X size={20} />
             </button>

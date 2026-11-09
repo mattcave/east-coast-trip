@@ -33,14 +33,14 @@ export default function TripSwitcher({ trips, currentTripId, onShowAllTrips }) {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex max-w-full items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-800 text-sm font-medium pl-3 pr-2.5 py-2 rounded-lg shadow-md border border-gray-200 transition-colors"
+        className="press flex max-w-full items-center gap-1.5 bg-paper hover:bg-line text-ink text-sm font-medium pl-3 pr-2.5 py-2 rounded-lg shadow-md border border-line"
       >
         <span className="truncate">{current?.name ?? "Choose a trip"}</span>
-        <ChevronDown size={16} className={`flex-shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={16} className={`flex-shrink-0 text-muted motion-safe:transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
-        <div role="menu" className="absolute left-0 top-full z-20 mt-1.5 w-72 max-w-[calc(100vw-2rem)] bg-white rounded-lg shadow-lg border border-gray-200 py-1 overflow-hidden">
+        <div role="menu" className="absolute left-0 top-full z-20 mt-1.5 w-72 max-w-[calc(100vw-2rem)] bg-paper rounded-lg shadow-lg border border-line py-1 overflow-hidden">
           {sortTrips(trips).map((trip) => {
             const dates = formatTripDates(trip);
             const isCurrent = trip.id === currentTripId;
@@ -51,21 +51,21 @@ export default function TripSwitcher({ trips, currentTripId, onShowAllTrips }) {
                 href={`/trips/${trip.id}`}
                 onClick={() => setOpen(false)}
                 aria-current={isCurrent ? "page" : undefined}
-                className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50"
+                className="flex items-center gap-2 px-3 py-2 hover:bg-line/60"
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium text-gray-800 truncate">{trip.name}</span>
-                  {dates && <span className="block text-xs text-gray-400">{dates}</span>}
+                  <span className="block text-sm font-medium text-ink truncate">{trip.name}</span>
+                  {dates && <span className="block text-xs text-muted">{dates}</span>}
                 </span>
-                {isCurrent && <Check size={16} className="flex-shrink-0 text-blue-600" />}
+                {isCurrent && <Check size={16} className="flex-shrink-0 text-accent" />}
               </Link>
             );
           })}
-          <div className="my-1 border-t border-gray-100" />
+          <div className="my-1 border-t border-line" />
           <button
             role="menuitem"
             onClick={() => { setOpen(false); onShowAllTrips(); }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted hover:bg-line/60 hover:text-ink"
           >
             <LayoutGrid size={14} />
             All trips…

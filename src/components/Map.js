@@ -6,7 +6,6 @@ import { createRoot } from "react-dom/client";
 import * as maplibregl from "maplibre-gl";
 import Supercluster from "supercluster";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Camera } from "lucide-react";
 import { PIN_ICONS } from "@/lib/icons";
 import { pinImages, clusterLabel } from "@/lib/pins";
 import { flyToView, initialMapOptions } from "@/lib/trips";
@@ -27,46 +26,72 @@ const CLUSTER_MAX_ZOOM = 16;
 // since zooming often took two or three clicks to separate them
 const CLUSTER_LIST_MAX = 6;
 
+// Map source and layer id for the background dots (see backgroundPoints)
+const BACKGROUND_SOURCE = "background-points";
+
 // Shared by every marker <button>. Tailwind's preflight already strips the
-// button chrome; this adds a visible keyboard focus ring.
-const MARKER_BUTTON_CLASS = "block rounded-full cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
+// button chrome; this adds a visible keyboard focus ring. `map-marker` hooks
+// up the hover growth in globals.css.
+const MARKER_BUTTON_CLASS = "map-marker block rounded-full cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent";
+
+// Palette values for inline marker styles (markers render into their own
+// React roots with inline styles, so they can't use the Tailwind tokens)
+const INK = "#1f2a2e";
+const PAPER = "#fbf8f3";
+const ACCENT = "#1f6f6b";
+const MUTED = "#5b6b70";
+// MapLibre's container sets its own Helvetica font, so marker text names
+// the app's sans (Geist, loaded in layout.js) explicitly
+const SANS = "var(--font-geist-sans), system-ui, sans-serif";
+
+// A stop: a disc in its category colour. A dark badge with a number always
+// means a stop number (clusters never look like this). A stop with photos
+// gets a white ring and a soft shadow, like a small print, instead of a
+// separate camera badge, so no stop carries more than one badge. The
+// selected stop is enlarged with an accent ring.
+function markerShadow({ selected, hasPhotos }) {
+  if (selected) return `0 0 0 2px white, 0 0 0 5px ${ACCENT}, 0 3px 10px rgba(0,0,0,0.4)`;
+  if (hasPhotos) return "0 0 0 2px white, 0 2px 6px rgba(0,0,0,0.35)";
+  return "0 1px 3px rgba(0,0,0,0.3)";
+}
 
 function MarkerPin({ icon, number, selected, hasPhotos }) {
   const { icon: Icon, color } = PIN_ICONS[icon] ?? PIN_ICONS.default;
   return (
     <div
+      data-marker-face=""
+      data-selected={selected ? "" : undefined}
       style={{
         position: "relative",
         background: color,
         borderRadius: "50%",
-        width: 36,
-        height: 36,
+        width: 34,
+        height: 34,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        border: "2px solid white",
-        boxShadow: selected ? "0 0 0 3px rgba(37,99,235,0.6), 0 3px 10px rgba(0,0,0,0.45)" : "0 2px 6px rgba(0,0,0,0.35)",
+        boxShadow: markerShadow({ selected, hasPhotos }),
         // Scaled here rather than on the marker element, whose transform
         // MapLibre owns for positioning
         transform: selected ? "scale(1.25)" : undefined,
-        transition: "transform 150ms ease-out",
       }}
     >
-      <Icon size={18} color="white" />
+      <Icon size={17} color="white" />
       {number != null && (
         <span
           aria-hidden="true"
           style={{
             position: "absolute",
-            top: -6,
-            right: -8,
+            top: -7,
+            right: -9,
             minWidth: 18,
             height: 18,
             padding: "0 4px",
             borderRadius: 9,
-            background: "#1f2937",
+            background: INK,
             color: "white",
             border: "1.5px solid white",
+            fontFamily: SANS,
             fontSize: 10,
             fontWeight: 700,
             lineHeight: "15px",
@@ -76,54 +101,33 @@ function MarkerPin({ icon, number, selected, hasPhotos }) {
           {number}
         </span>
       )}
-      {/* Small neutral badge on stops with photos, so visitors can tell
-          which stops have pictures before opening them. Placeholder look;
-          the visual redesign may restyle it. */}
-      {hasPhotos && (
-        <span
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            bottom: -5,
-            right: -7,
-            width: 18,
-            height: 18,
-            borderRadius: 9,
-            background: "white",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Camera size={11} color="#374151" strokeWidth={2.25} />
-        </span>
-      )}
     </div>
   );
 }
 
+// A cluster: a paper circle with an ink ring and the count or stop range,
+// the same size as a stop so big clusters don't loom over their neighbours.
+// Light where stops are coloured, and with no badge, so it never reads as
+// a stop.
 function ClusterBadge({ text }) {
-  // Same size as a pin marker, whatever the count. Scaling the badge with
-  // the count made big clusters loom over the pins around them; the number
-  // already says how many stops are inside.
-  const size = 36;
   return (
-    <div style={{
-      background: "#1f2937",
-      color: "white",
+    <div data-marker-face="" style={{
+      background: PAPER,
+      color: INK,
       borderRadius: "50%",
-      width: size,
-      height: size,
+      width: 36,
+      height: 36,
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      border: "2px solid white",
-      boxShadow: "0 2px 6px rgba(0,0,0,0.35)",
+      border: `2px solid ${INK}`,
+      boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
       // A range like "38–41" is wider than a count, so it gets a smaller size
+      fontFamily: SANS,
       fontSize: text.length > 3 ? 10 : 13,
       fontWeight: 600,
       letterSpacing: text.length > 3 ? "-0.02em" : undefined,
+      fontVariantNumeric: "tabular-nums",
     }}>
       {text}
     </div>
@@ -147,6 +151,7 @@ function pinAriaLabel(pin, number, hasPhotos) {
 export default function Map({
   mapRef, pins = [], stopNumbers = null, selectedPinId = null, homeView = null,
   placementMode = false, onLocationPick, onPinClick, onMapClick,
+  previewPinId = null, backgroundPoints = null,
 }) {
   const containerRef = useRef(null);
   const [initError, setInitError] = useState(null);
@@ -460,6 +465,63 @@ export default function Map({
     };
   }, [mapRef, pins, stopNumbers, selectedPinId]);
 
+  // The stop the visitor is about to step to (hovering Previous/Next) shows
+  // its marker in the hover state, so they can see where they're going.
+  // When that stop is inside a cluster, the cluster lights up instead.
+  // Re-applied when markers change, since a marker can be rebuilt.
+  useEffect(() => {
+    const markers = markersRef.current;
+    let target = previewPinId && markers.has(`pin:${previewPinId}`) ? `pin:${previewPinId}` : null;
+    if (previewPinId && !target) {
+      const { index } = clusterStateRef.current;
+      for (const key of markers.keys()) {
+        if (!key.startsWith("cluster:") || !index) continue;
+        let leaves = [];
+        try {
+          leaves = index.getLeaves(Number(key.slice("cluster:".length)), Infinity);
+        } catch {
+          // Supercluster throws for an id that isn't in the current index
+          // (a marker from before the pins changed); just skip it
+        }
+        if (leaves.some((leaf) => leaf.properties.pinId === previewPinId)) {
+          target = key;
+          break;
+        }
+      }
+    }
+    for (const [key, entry] of markers) entry.el.toggleAttribute("data-preview", key === target);
+  }, [previewPinId, pins, selectedPinId]);
+
+  // Small, quiet dots for points that aren't markers: every trip's stops
+  // behind the trip chooser on the landing page, so the map isn't empty
+  // there. A map layer rather than DOM markers: there can be a lot of them,
+  // and they're not meant to be clicked.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const data = {
+      type: "FeatureCollection",
+      features: (backgroundPoints ?? []).map((coordinates) => ({ type: "Feature", properties: {}, geometry: { type: "Point", coordinates } })),
+    };
+    const apply = () => {
+      const source = map.getSource(BACKGROUND_SOURCE);
+      if (source) {
+        source.setData(data);
+        return;
+      }
+      map.addSource(BACKGROUND_SOURCE, { type: "geojson", data });
+      map.addLayer({
+        id: BACKGROUND_SOURCE,
+        type: "circle",
+        source: BACKGROUND_SOURCE,
+        paint: { "circle-radius": 3, "circle-color": MUTED, "circle-opacity": 0.7 },
+      });
+    };
+    if (map.isStyleLoaded()) apply();
+    else map.once("load", apply);
+    return () => map.off("load", apply);
+  }, [mapRef, backgroundPoints]);
+
   // Handle placement mode: crosshair cursor, preview marker, click to pick
   const previewMarkerRef = useRef(null);
   useEffect(() => {
@@ -497,7 +559,7 @@ export default function Map({
 
   if (initError) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-600 text-center p-6">
+      <div className="w-full h-full flex items-center justify-center bg-paper text-muted text-center p-6">
         <p>{initError}</p>
       </div>
     );

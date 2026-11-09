@@ -16,13 +16,13 @@ export default async function NotFound() {
   return (
     // A div, not <main>: for an unknown trip this renders inside the (map)
     // layout's <main>
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="bg-white rounded-2xl shadow-md p-6 w-full max-w-md">
-        <span className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-          <MapPinOff size={20} className="text-blue-600" />
+    <div className="min-h-screen flex items-center justify-center bg-paper p-4">
+      <div className="bg-white rounded-2xl border border-line shadow-md p-6 w-full max-w-md">
+        <span className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+          <MapPinOff size={20} className="text-accent" aria-hidden="true" />
         </span>
-        <h1 className="mt-3 font-semibold text-gray-900 text-xl">We took a wrong turn</h1>
-        <p className="mt-1 text-sm text-gray-600 leading-relaxed">
+        <h1 className="mt-3 font-serif font-semibold text-ink text-[26px] leading-[1.15]">We took a wrong turn</h1>
+        <p className="mt-2 text-sm text-muted leading-relaxed">
           There&apos;s nothing at this address - the link may be mistyped, or the trip may have been removed.
         </p>
 
@@ -36,13 +36,13 @@ export default async function NotFound() {
                       trip; a plain grey outlined box looked like a text field */}
                   <Link
                     href={`/trips/${trip.id}`}
-                    className="group flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-50/60 hover:bg-blue-50 transition-colors"
+                    className="press group flex items-center gap-3 px-3 py-2 rounded-lg bg-accent/5 hover:bg-accent/10"
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium text-blue-700 group-hover:text-blue-800">{trip.name}</span>
-                      {dates && <span className="block text-xs text-gray-500">{dates}</span>}
+                      <span className="block text-sm font-medium text-accent group-hover:text-accent-hover group-hover:underline underline-offset-2">{trip.name}</span>
+                      {dates && <span className="block text-xs text-muted">{dates}</span>}
                     </span>
-                    <ChevronRight size={16} className="flex-shrink-0 text-blue-600 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                    <ChevronRight size={16} className="flex-shrink-0 text-accent motion-safe:transition-transform motion-safe:group-hover:translate-x-0.5" aria-hidden="true" />
                   </Link>
                 </li>
               );
@@ -52,7 +52,7 @@ export default async function NotFound() {
 
         <Link
           href="/"
-          className="mt-5 block w-full text-center bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
+          className="press mt-5 block w-full text-center bg-accent hover:bg-accent-hover text-white text-sm font-medium py-2.5 rounded-lg"
         >
           Go to {SITE_NAME}
         </Link>

@@ -55,13 +55,13 @@ export default function CategoryChips({ categories, selected, onToggle, onClear 
             type="button"
             aria-pressed={isOn}
             onClick={() => onToggle(key)}
-            className={`flex flex-shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm transition-colors ${
+            className={`press flex flex-shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium shadow-sm ${
               isOn
-                ? "border-blue-500 bg-blue-50 text-blue-700"
-                : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                ? "border-accent bg-accent text-white hover:bg-accent-hover"
+                : "border-line bg-paper text-ink hover:bg-line"
             }`}
           >
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} aria-hidden="true" />
+            <span className={`h-2.5 w-2.5 rounded-full ${isOn ? "ring-1 ring-white" : ""}`} style={{ background: color }} aria-hidden="true" />
             {label}
           </button>
         );
@@ -70,7 +70,7 @@ export default function CategoryChips({ categories, selected, onToggle, onClear 
         <button
           type="button"
           onClick={onClear}
-          className="flex flex-shrink-0 items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-500 shadow-sm hover:bg-gray-50 hover:text-gray-700"
+          className="press flex flex-shrink-0 items-center gap-1 rounded-full border border-line bg-paper px-2.5 py-1 text-xs font-medium text-muted shadow-sm hover:bg-line hover:text-ink"
         >
           <X size={12} aria-hidden="true" />
           Show all
