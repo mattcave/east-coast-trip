@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { Pencil, HelpCircle } from "lucide-react";
+import { Pencil, HelpCircle, List } from "lucide-react";
 import Map from "./Map";
 import GeoSearch from "./GeoSearch";
 import EditorModal from "./EditorModal";
@@ -10,8 +10,11 @@ import PinPopup from "./PinPopup";
 import TripSummary from "./TripSummary";
 import TripChooser from "./TripChooser";
 import TripSwitcher from "./TripSwitcher";
+import StopsList from "./StopsList";
+import CategoryChips from "./CategoryChips";
 import { tripHomeView, overviewHomeView, flyToView, easeToPoint, setMapInset } from "@/lib/trips";
 import { sortPins } from "@/lib/pins";
+import { tripCategories, filterPinsByCategory } from "@/lib/categories";
 
 // Stable empty array so a trip without pins doesn't hand Map a new array
 // (and rebuild its markers) on every render
@@ -103,6 +106,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   // trip. (The chooser opened from a trip page leaves that trip showing.)
   const showOverview = isRoot && overlay === "chooser";
   const pins = showOverview ? NO_PINS : stops;
+  const categories = useMemo(() => tripCategories(pins), [pins]);
   const homeView = useMemo(
     () => (showOverview ? overviewHomeView(trips, pinsByTrip) : tripHomeView(trip, tripPins)),
     [showOverview, trips, pinsByTrip, trip, tripPins]
@@ -121,8 +125,21 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   const nextStop = selectedPin ? stops[selectedIndex + 1] ?? null : null;
   // Owned here (not inside Map) so GeoSearch and the editor can call flyTo
   const mapRef = useRef(null);
-  // The open stop panel, measured to keep the stop clear of it
+  // The open panel (a stop or the stops list), measured to keep the stop
+  // clear of it
   const panelRef = useRef(null);
+  // Only one thing uses the right-hand panel at a time: a stop, the stops
+  // list, or the admin editor. Opening one closes the others.
+  const [stopsListOpen, setStopsListOpen] = useState(false);
+  // Whether the open stop was picked from the list, so it can offer a way back
+  const [openedFromList, setOpenedFromList] = useState(false);
+  // Selected category chips. Kept while the visitor stays on this trip,
+  // dropped on a trip switch; not persisted.
+  const [categoryFilter, setCategoryFilter] = useState(() => new Set());
+  const mapPins = useMemo(
+    () => filterPinsByCategory(pins, categoryFilter, selectedPinId),
+    [pins, categoryFilter, selectedPinId]
+  );
 
   // Stored callback from the form's "Pick on map" button.
   // Called with the picked lngLat when the user clicks the map.
@@ -136,6 +153,9 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   if (trip.id !== shownTripId) {
     setShownTripId(trip.id);
     setSelectedPinId(null);
+    setStopsListOpen(false);
+    setOpenedFromList(false);
+    setCategoryFilter(new Set());
     setEditTargetId(null);
     setPlacementMode(false);
   }
@@ -147,14 +167,23 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   // setMapInset). Declared before the trip fly-to effect below so that, on a
   // trip switch, the padding is cleared before the flight starts rather
   // than cancelling it.
-  const insetActiveRef = useRef(false);
+  // The inset and stop from the last ease, or null when no panel inset is set
+  const lastInsetRef = useRef(null);
   const selectedLngLat = selectedPin?.lngLat;
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     if (!selectedPinId || !selectedLngLat) {
-      if (insetActiveRef.current) setMapInset(map);
-      insetActiveRef.current = false;
+      const last = lastInsetRef.current;
+      lastInsetRef.current = null;
+      if (!last) return;
+      // A mobile sheet covers most of the screen, so the stop was squeezed
+      // into the strip above it; leaving the map there after the sheet
+      // closes shows mostly whatever lies south of the stop. Bring the stop
+      // back to the middle instead. The desktop panel only shifted things
+      // sideways, so there the map is left exactly as it looks.
+      if (last.inset.bottom > 0) easeToPoint(map, last.lngLat, { inset: { top: 0, right: 0, bottom: 0, left: 0 } });
+      else setMapInset(map);
       return;
     }
     const rect = panelRef.current?.getBoundingClientRect();
@@ -171,7 +200,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
         if (window.innerHeight - rect.height > TOP_CONTROLS_HEIGHT + 48) inset.top = TOP_CONTROLS_HEIGHT;
       }
     }
-    insetActiveRef.current = true;
+    lastInsetRef.current = { inset, lngLat: selectedLngLat };
     easeToPoint(map, selectedLngLat, { inset });
   // Keyed on the coordinates' values so a refresh that hands back an equal
   // array doesn't re-ease
@@ -243,6 +272,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
     setPlacementMode(true);
     setModalOpen(false);
     setSelectedPinId(null);
+    setStopsListOpen(false);
   };
 
   // prefill is optional extra fields (label, wikipedia) from a Wikipedia search selection
@@ -274,6 +304,36 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   };
 
   const closeStop = useCallback(() => setSelectedPinId(null), []);
+  // Opening a stop from a marker or the cluster list
+  const openStop = useCallback((pin) => {
+    setStopsListOpen(false);
+    setOpenedFromList(false);
+    setSelectedPinId(pin.id);
+  }, []);
+  const openStopFromList = useCallback((pin) => {
+    setStopsListOpen(false);
+    setOpenedFromList(true);
+    setSelectedPinId(pin.id);
+  }, []);
+  const openStopsList = useCallback(() => {
+    setSelectedPinId(null);
+    setStopsListOpen(true);
+  }, []);
+  const closeStopsList = useCallback(() => setStopsListOpen(false), []);
+  // A map click closes whichever panel is open
+  const closePanels = useCallback(() => {
+    setSelectedPinId(null);
+    setStopsListOpen(false);
+  }, []);
+  const toggleCategory = useCallback((key) => {
+    setCategoryFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+  const clearCategories = useCallback(() => setCategoryFilter(new Set()), []);
   const goToPrev = useCallback(() => { if (prevStop) setSelectedPinId(prevStop.id); }, [prevStop]);
   const goToNext = useCallback(() => { if (nextStop) setSelectedPinId(nextStop.id); }, [nextStop]);
   const getZoom = useCallback(() => mapRef.current?.getZoom(), []);
@@ -281,27 +341,55 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   if (isUnknownTrip) return null;
 
   return (
-    <div className="relative w-full h-full">
+    <div className={`relative w-full h-full ${categories.length > 1 && !placementMode ? "with-category-chips" : ""}`}>
       <Map
         mapRef={mapRef}
-        pins={pins}
+        pins={mapPins}
         stopNumbers={stopNumbers}
         selectedPinId={selectedPin?.id ?? null}
         homeView={homeView}
         placementMode={placementMode}
         onLocationPick={handleLocationPick}
-        onPinClick={(pin) => setSelectedPinId(pin.id)}
-        // Clicking the open map closes the stop panel (desktop has no
-        // backdrop to click)
-        onMapClick={closeStop}
+        onPinClick={openStop}
+        // Clicking the open map closes the stop panel or stops list
+        // (desktop has no backdrop to click)
+        onMapClick={closePanels}
       />
 
+      {/* Top bar: trip menu and Stops button, with the category chips
+          below. The wrapper ignores clicks so the map stays usable in the
+          gaps; the right margin leaves room for the help/Admin button. */}
       {!placementMode && (
-        <TripSwitcher
-          trips={trips}
-          currentTripId={showOverview ? null : trip.id}
-          onShowAllTrips={() => setOverlay("chooser")}
-        />
+        <div className="pointer-events-none absolute top-4 left-4 right-4 z-10 flex flex-col items-start gap-2">
+          <div className="pointer-events-auto flex max-w-[calc(100%-6.5rem)] items-start gap-2">
+            <TripSwitcher
+              trips={trips}
+              currentTripId={showOverview ? null : trip.id}
+              onShowAllTrips={() => setOverlay("chooser")}
+            />
+            {!showOverview && stops.length > 0 && (
+              <button
+                type="button"
+                onClick={stopsListOpen ? closeStopsList : openStopsList}
+                aria-expanded={stopsListOpen}
+                className="flex flex-shrink-0 items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-800 text-sm font-medium px-3 py-2 rounded-lg shadow-md border border-gray-200 transition-colors"
+              >
+                <List size={16} className="text-gray-500" aria-hidden="true" />
+                Stops
+              </button>
+            )}
+          </div>
+          {categories.length > 1 && (
+            <div className="pointer-events-auto max-w-full">
+              <CategoryChips
+                categories={categories}
+                selected={categoryFilter}
+                onToggle={toggleCategory}
+                onClear={clearCategories}
+              />
+            </div>
+          )}
+        </div>
       )}
 
       {/* Floating search box shown during placement mode */}
@@ -316,7 +404,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
       {/* Admin button — top-right, aligned with the panel it opens */}
       {isAuthenticated && !placementMode && (
         <button
-          onClick={() => { setSelectedPinId(null); setModalOpen(true); }}
+          onClick={() => { closePanels(); setModalOpen(true); }}
           className="absolute top-4 right-4 z-10 flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium px-3 py-2 rounded-lg shadow-md border border-gray-200 transition-colors"
         >
           <Pencil size={14} />
@@ -381,10 +469,23 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
         </div>
       )}
 
+      {stopsListOpen && !showOverview && (
+        <StopsList
+          stops={stops}
+          stopNumbers={stopNumbers}
+          onPick={openStopFromList}
+          onClose={closeStopsList}
+          panelRef={panelRef}
+        />
+      )}
+
       {/* Stop detail — bottom sheet on mobile, right-hand panel on desktop */}
       {selectedPin && (
         <PinPopup
           pin={selectedPin}
+          stopNumber={stopNumbers[selectedPin.id]}
+          stopCount={stops.length}
+          onBackToList={openedFromList ? openStopsList : null}
           prev={prevStop}
           next={nextStop}
           onPrev={goToPrev}

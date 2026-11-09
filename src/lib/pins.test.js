@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sortPins, nextOrder, applyOrder, moveItem, sanitizePinDate, formatPinDate, pinImages } from "./pins";
+import { sortPins, nextOrder, applyOrder, moveItem, sanitizePinDate, formatPinDate, pinImages, matchesStopQuery } from "./pins";
 
 const ids = (pins) => pins.map((p) => p.id);
 
@@ -133,5 +133,24 @@ describe("pinImages", () => {
     expect(pinImages({ images: ["a"], image: "b" })).toEqual(["a"]);
     expect(pinImages({ image: "b" })).toEqual(["b"]);
     expect(pinImages({})).toEqual([]);
+  });
+});
+
+describe("matchesStopQuery", () => {
+  const pin = { label: "Chéticamp Harbour" };
+
+  it("matches everything for a blank query", () => {
+    expect(matchesStopQuery(pin, "")).toBe(true);
+    expect(matchesStopQuery(pin, "   ")).toBe(true);
+  });
+
+  it("ignores case and accents", () => {
+    expect(matchesStopQuery(pin, "CHETICAMP")).toBe(true);
+    expect(matchesStopQuery({ label: "Cheticamp" }, "chéti")).toBe(true);
+  });
+
+  it("needs every word, in any order", () => {
+    expect(matchesStopQuery(pin, "harbour chet")).toBe(true);
+    expect(matchesStopQuery(pin, "harbour beach")).toBe(false);
   });
 });

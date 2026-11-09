@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
+import { ExternalLink, ChevronLeft, ChevronRight, List } from "lucide-react";
 import PhotoViewer from "./PhotoViewer";
-import { pinImages } from "@/lib/pins";
+import SidePanel from "./SidePanel";
+import { pinImages, formatPinDate } from "@/lib/pins";
+import { pinCategory } from "@/lib/categories";
+import { PIN_ICONS } from "@/lib/icons";
 import { prefersReducedMotion } from "@/lib/trips";
 
 // The plain `search?api=1&query=` URL ignores a `zoom` param and always
@@ -127,6 +130,10 @@ function PhotoCarousel({ images, alt, onOpen, scrollRequest }) {
         </button>
       )}
 
+      <div className="absolute bottom-2 right-2 rounded-full bg-black/50 px-2 py-0.5 text-[11px] font-medium text-white tabular-nums pointer-events-none">
+        {index + 1} / {images.length}
+      </div>
+
       <div className="absolute bottom-2 inset-x-0 flex justify-center gap-1.5 pointer-events-none">
         {images.map((_, i) => (
           <span
@@ -218,33 +225,24 @@ function StepButton({ direction, target, onClick }) {
   );
 }
 
-// One stop's details. A bottom sheet on mobile (capped at 85% of the
-// visible height, scrolling inside, with the title and stop controls fixed
-// at its top and bottom), and from the sm breakpoint a full-height panel
-// docked to the right that leaves the map undimmed, so the pin that was
-// clicked stays visible beside it. TripMap measures the panel through
-// panelRef to keep the stop clear of it.
-//
-// ArrowLeft/ArrowRight step between stops while the panel is open (when
-// `keyboardEnabled`), and Escape closes it.
+// One stop's details, in the shared SidePanel shell (bottom sheet on
+// mobile, docked right on desktop). ArrowLeft/ArrowRight step between stops
+// while it's open (when `keyboardEnabled`); SidePanel handles Escape.
 export default function PinPopup({
-  pin, prev, next, onPrev, onNext, onClose, onEdit, getZoom, panelRef, keyboardEnabled = true,
+  pin, stopNumber, stopCount, prev, next, onPrev, onNext, onClose, onEdit, onBackToList,
+  getZoom, panelRef, keyboardEnabled = true,
 }) {
   const [viewer, setViewer] = useState(null); // { index } while the full-screen viewer is open
   const [scrollRequest, setScrollRequest] = useState(null);
-  const dialogRef = useRef(null);
   const scrollRef = useRef(null);
   const images = pinImages(pin);
 
-  // Whatever had focus when the panel opened (usually the marker) gets it
-  // back when the panel closes, so keyboard users carry on from where they were
-  useEffect(() => {
-    const opener = document.activeElement;
-    dialogRef.current?.focus({ preventScroll: true });
-    return () => {
-      if (opener instanceof HTMLElement && opener.isConnected) opener.focus({ preventScroll: true });
-    };
-  }, []);
+  // "Stop 12 of 44 · Camping · July 14", leaving out whatever isn't known
+  const eyebrow = [
+    stopNumber ? `Stop ${stopNumber} of ${stopCount}` : null,
+    PIN_ICONS[pinCategory(pin)].label,
+    formatPinDate(pin.date),
+  ].filter(Boolean).join(" · ");
 
   // Each stop starts scrolled to the top, and the viewer never carries over
   const [shownPinId, setShownPinId] = useState(pin.id);
@@ -263,113 +261,92 @@ export default function PinPopup({
   useEffect(() => {
     if (!keyboardEnabled || viewer) return;
     const onKeyDown = (e) => {
-      if (isTypingTarget(e.target) || e.altKey || e.ctrlKey || e.metaKey) return;
-      if (e.key === "Escape") { onClose(); return; }
-      const handler = e.key === "ArrowLeft" ? (prev && onPrev) : e.key === "ArrowRight" ? (next && onNext) : null;
       if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      if (isTypingTarget(e.target) || e.altKey || e.ctrlKey || e.metaKey) return;
       e.preventDefault();
       e.stopPropagation();
-      handler?.();
+      if (e.key === "ArrowLeft" && prev) onPrev();
+      if (e.key === "ArrowRight" && next) onNext();
     };
     window.addEventListener("keydown", onKeyDown, { capture: true });
     return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
-  }, [keyboardEnabled, viewer, prev, next, onPrev, onNext, onClose]);
+  }, [keyboardEnabled, viewer, prev, next, onPrev, onNext]);
 
   const closeViewer = (index) => {
     setViewer(null);
     setScrollRequest({ index });
   };
 
+  // Stop stepping, always visible. The bottom padding keeps it clear of the
+  // iPhone home indicator.
+  const footer = (prev || next) ? (
+    <div className="flex flex-shrink-0 items-stretch gap-2 border-t border-gray-100 px-2 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <StepButton direction="prev" target={prev} onClick={onPrev} />
+      <StepButton direction="next" target={next} onClick={onNext} />
+    </div>
+  ) : null;
+
   return (
     <>
-      {/* Backdrop — mobile only. On desktop the map stays live and
-          undimmed beside the panel; clicking it closes the panel via
-          TripMap's map click handler. */}
-      <div className="fixed inset-0 z-20 bg-black/30 sm:hidden" onClick={onClose} aria-hidden="true" />
-
-      <div
-        ref={(el) => {
-          dialogRef.current = el;
-          if (panelRef) panelRef.current = el;
-        }}
-        role="dialog"
-        aria-labelledby="pin-popup-title"
-        tabIndex={-1}
-        className="fixed bottom-0 left-0 right-0 z-30 flex max-h-[85dvh] flex-col bg-white rounded-t-2xl shadow-2xl outline-none sm:top-0 sm:bottom-0 sm:left-auto sm:max-h-none sm:w-[380px] sm:rounded-none lg:w-[440px]"
+      <SidePanel
+        titleId="pin-popup-title"
+        title={pin.label}
+        eyebrow={eyebrow}
+        headerExtra={onBackToList ? (
+          <button
+            type="button"
+            onClick={onBackToList}
+            className="-mt-1 mb-2 ml-4 sm:ml-5 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            <List size={12} />
+            All stops
+          </button>
+        ) : null}
+        footer={footer}
+        onClose={onClose}
+        panelRef={panelRef}
+        bodyRef={scrollRef}
       >
-        {/* Header: always visible */}
-        <div className="flex-shrink-0 border-b border-gray-100">
-          {/* Mobile drag handle */}
-          <div className="flex justify-center pt-2.5 pb-1 sm:hidden">
-            <div className="w-10 h-1 bg-gray-300 rounded-full" />
+        <PhotoCarousel
+          key={pin.id}
+          images={images}
+          alt={pin.label}
+          onOpen={(index) => setViewer({ index })}
+          scrollRequest={scrollRequest}
+        />
+
+        <div className="p-4 sm:p-5">
+          {pin.description && (
+            <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
+              {pin.description}
+            </p>
+          )}
+
+          <div className={pin.description ? "mt-2" : undefined}>
+            <a
+              href={googleMapsUrl(pin.lngLat, getZoom?.())}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+            >
+              <ExternalLink size={12} />
+              View on Google Maps
+            </a>
           </div>
-          <div className="flex items-start justify-between gap-3 px-4 pb-3 pt-1 sm:px-5 sm:pt-4">
-            <h2 id="pin-popup-title" className="font-semibold text-gray-900 text-lg sm:text-xl leading-snug">
-              {pin.label}
-            </h2>
+
+          <WikiSection pin={pin} />
+
+          {onEdit && (
             <button
               type="button"
-              onClick={onClose}
-              aria-label="Close"
-              className="flex-shrink-0 text-gray-400 hover:text-gray-700 transition-colors p-0.5"
+              onClick={() => onEdit(pin.id)}
+              className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
             >
-              <X size={20} />
+              Edit
             </button>
-          </div>
+          )}
         </div>
-
-        {/* Body: scrolls on its own */}
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <PhotoCarousel
-            key={pin.id}
-            images={images}
-            alt={pin.label}
-            onOpen={(index) => setViewer({ index })}
-            scrollRequest={scrollRequest}
-          />
-
-          <div className="p-4 sm:p-5">
-            {pin.description && (
-              <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
-                {pin.description}
-              </p>
-            )}
-
-            <div className={pin.description ? "mt-2" : undefined}>
-              <a
-                href={googleMapsUrl(pin.lngLat, getZoom?.())}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
-              >
-                <ExternalLink size={12} />
-                View on Google Maps
-              </a>
-            </div>
-
-            <WikiSection pin={pin} />
-
-            {onEdit && (
-              <button
-                type="button"
-                onClick={() => onEdit(pin.id)}
-                className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
-              >
-                Edit
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Footer: stop stepping, always visible. The bottom padding keeps
-            it clear of the iPhone home indicator. */}
-        {(prev || next) && (
-          <div className="flex flex-shrink-0 items-stretch gap-2 border-t border-gray-100 px-2 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-            <StepButton direction="prev" target={prev} onClick={onPrev} />
-            <StepButton direction="next" target={next} onClick={onNext} />
-          </div>
-        )}
-      </div>
+      </SidePanel>
 
       {viewer && (
         <PhotoViewer images={images} alt={pin.label} startIndex={viewer.index} onClose={closeViewer} />

@@ -6,7 +6,9 @@ import { createRoot } from "react-dom/client";
 import * as maplibregl from "maplibre-gl";
 import Supercluster from "supercluster";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { Camera } from "lucide-react";
 import { PIN_ICONS } from "@/lib/icons";
+import { pinImages } from "@/lib/pins";
 import { flyToView, initialMapOptions } from "@/lib/trips";
 import ClusterList from "./ClusterList";
 
@@ -29,7 +31,7 @@ const CLUSTER_LIST_MAX = 6;
 // button chrome; this adds a visible keyboard focus ring.
 const MARKER_BUTTON_CLASS = "block rounded-full cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
 
-function MarkerPin({ icon, number, selected }) {
+function MarkerPin({ icon, number, selected, hasPhotos }) {
   const { icon: Icon, color } = PIN_ICONS[icon] ?? PIN_ICONS.default;
   return (
     <div
@@ -74,6 +76,29 @@ function MarkerPin({ icon, number, selected }) {
           {number}
         </span>
       )}
+      {/* Small neutral badge on stops with photos, so visitors can tell
+          which stops have pictures before opening them. Placeholder look;
+          the visual redesign may restyle it. */}
+      {hasPhotos && (
+        <span
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            bottom: -5,
+            right: -7,
+            width: 18,
+            height: 18,
+            borderRadius: 9,
+            background: "white",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Camera size={11} color="#374151" strokeWidth={2.25} />
+        </span>
+      )}
     </div>
   );
 }
@@ -103,9 +128,10 @@ function ClusterBadge({ count }) {
   );
 }
 
-function pinAriaLabel(pin, number) {
+function pinAriaLabel(pin, number, hasPhotos) {
   const category = (PIN_ICONS[pin.icon] ?? PIN_ICONS.default).label;
-  return number != null ? `Stop ${number}: ${pin.label}, ${category}` : `${pin.label}, ${category}`;
+  const name = number != null ? `Stop ${number}: ${pin.label}, ${category}` : `${pin.label}, ${category}`;
+  return hasPhotos ? `${name}, has photos` : name;
 }
 
 // homeView is the current trip's view (see tripHomeView): where the map
@@ -340,16 +366,17 @@ export default function Map({
           onPinClickRef.current?.(clusterStateRef.current.pinsById.get(pin.id) ?? pin);
         });
       });
-      const signature = JSON.stringify([pin.icon, pin.label, pin.lngLat, number, selected]);
+      const hasPhotos = pinImages(pin).length > 0;
+      const signature = JSON.stringify([pin.icon, pin.label, pin.lngLat, number, selected, hasPhotos]);
       if (entry.signature !== signature) {
         entry.marker.setLngLat(pin.lngLat);
-        entry.el.setAttribute("aria-label", pinAriaLabel(pin, number));
+        entry.el.setAttribute("aria-label", pinAriaLabel(pin, number, hasPhotos));
         if (selected) entry.el.setAttribute("aria-current", "true");
         else entry.el.removeAttribute("aria-current");
         // Lifts the selected marker above its neighbours. MapLibre doesn't
         // set z-index on marker elements, so this is safe to own here.
         entry.el.style.zIndex = selected ? "2" : "";
-        entry.root.render(<MarkerPin icon={pin.icon} number={number} selected={selected} />);
+        entry.root.render(<MarkerPin icon={pin.icon} number={number} selected={selected} hasPhotos={hasPhotos} />);
         entry.signature = signature;
       }
       return key;

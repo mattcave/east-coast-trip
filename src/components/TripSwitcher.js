@@ -5,9 +5,10 @@ import Link from "next/link";
 import { ChevronDown, Check, LayoutGrid } from "lucide-react";
 import { formatTripDates, sortTrips } from "@/lib/trips";
 
-// Top-left pill showing the current trip, with a dropdown for jumping
-// straight to another one. The MapLibre controls are pushed down below it
-// in globals.css.
+// Pill showing the current trip, with a dropdown for jumping straight to
+// another one. Positioned by TripMap's top bar; the dropdown floats over
+// whatever is below the bar (the category chips, the map controls). The
+// MapLibre controls are pushed down below the bar in globals.css.
 export default function TripSwitcher({ trips, currentTripId, onShowAllTrips }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
@@ -27,7 +28,7 @@ export default function TripSwitcher({ trips, currentTripId, onShowAllTrips }) {
   }, [open]);
 
   return (
-    <div ref={rootRef} className="absolute top-4 left-4 z-10 max-w-[calc(100%-5.5rem)]">
+    <div ref={rootRef} className="relative min-w-0 max-w-full">
       <button
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
@@ -39,7 +40,7 @@ export default function TripSwitcher({ trips, currentTripId, onShowAllTrips }) {
       </button>
 
       {open && (
-        <div role="menu" className="mt-1.5 w-72 max-w-[calc(100vw-2rem)] bg-white rounded-lg shadow-lg border border-gray-200 py-1 overflow-hidden">
+        <div role="menu" className="absolute left-0 top-full z-20 mt-1.5 w-72 max-w-[calc(100vw-2rem)] bg-white rounded-lg shadow-lg border border-gray-200 py-1 overflow-hidden">
           {sortTrips(trips).map((trip) => {
             const dates = formatTripDates(trip);
             const isCurrent = trip.id === currentTripId;

@@ -33,6 +33,12 @@ body {
   top: 52px;
 }
 
+/* When a trip shows category filter chips, they sit in a second row under
+   the trip switcher (about 30px tall), so the controls move down again */
+.with-category-chips .maplibregl-map .maplibregl-ctrl-top-left {
+  top: 96px;
+}
+
 /* Remove default padding so the image can fill edge-to-edge */
 .maplibregl-popup-content {
   padding: 0;

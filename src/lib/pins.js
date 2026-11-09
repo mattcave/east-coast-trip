@@ -83,3 +83,17 @@ export function formatPinDate(date) {
 export function pinImages(pin) {
   return pin?.images ?? (pin?.image ? [pin.image] : []);
 }
+
+// Lowercased with accents stripped, so "cheticamp" finds "Chéticamp"
+function foldForSearch(text) {
+  return String(text ?? "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+// Text filter for the stops list: every word in the query has to appear in
+// the stop's name, in any order. A blank query matches everything.
+export function matchesStopQuery(pin, query) {
+  const words = foldForSearch(query).split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+  const label = foldForSearch(pin?.label);
+  return words.every((w) => label.includes(w));
+}

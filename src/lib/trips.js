@@ -124,9 +124,9 @@ export function overviewHomeView(trips, pinsByTrip) {
 }
 
 // Keeps a fitted trip's edge pins clear of the floating controls: the trip
-// switcher and help/admin buttons along the top, the zoom/home controls down
-// the left side
-const FIT_OPTIONS = { padding: { top: 80, bottom: 48, left: 72, right: 56 }, maxZoom: 12 };
+// switcher, Stops button and category chips (two rows) and the help/admin
+// button along the top, the zoom/home controls down the left side
+const FIT_OPTIONS = { padding: { top: 104, bottom: 48, left: 72, right: 56 }, maxZoom: 12 };
 
 // Visitors who ask the OS for less motion get instant jumps instead of
 // flights and eases. Read at call time, so changing the setting applies
