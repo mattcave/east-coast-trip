@@ -39,9 +39,9 @@ Pins have no visit order today. The array order in `data/pins/east-coast-2026.js
 - Add an optional `date` field (`YYYY-MM-DD`), with a date input in the pin editor. It's only shown to visitors (see 2.2); it never affects the order.
 - Put one sort function in `src/lib/` and use it everywhere: pins by `order`, then any pins without an `order` in file order. Cover it with tests, including pins with a missing or duplicate `order`.
 
-### 1.2 Show the journey: route line, stop numbers, Previous/Next
+### 1.2 Show the journey: stop numbers, Previous/Next
 
-- Draw the route as a line through the stops in order (a MapLibre GeoJSON line layer, under the markers).
+- **Don't draw a route line.** Straight lines between stops don't follow the roads (they cut across the Bay of Fundy, for example), and visitors read them as the route driven. There's no logged route, and a recreated or calculated one isn't worth building and maintaining. The stop numbers and Previous/Next carry the order.
 - Show each stop's number on or beside its marker. Keep the marker visuals otherwise as they are.
 - In the pin popup, add **Previous stop** and **Next stop** buttons, labelled with the neighbouring stop's name. Disable them at the ends.
 - Moving to another stop updates the popup and eases the map to that stop.
@@ -118,7 +118,7 @@ At the trip's opening zoom, 39 of 44 stops are inside anonymous clusters, and so
 
 ### 2.4 Category filter chips
 
-Add chips for the categories in `src/lib/icons.js` (only categories the trip uses). They filter markers, the route stays visible, and they double as a legend for the marker colours. Remember the selection while the visitor stays on the trip; it doesn't need to persist.
+Add chips for the categories in `src/lib/icons.js` (only categories the trip uses). They filter markers and double as a legend for the marker colours. Remember the selection while the visitor stays on the trip; it doesn't need to persist.
 
 ---
 

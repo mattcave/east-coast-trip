@@ -25,10 +25,6 @@ const CLUSTER_MAX_ZOOM = 16;
 // since zooming often took two or three clicks to separate them
 const CLUSTER_LIST_MAX = 6;
 
-const ROUTE_SOURCE = "trip-route";
-const ROUTE_LAYER = "trip-route-line";
-const EMPTY_ROUTE = { type: "FeatureCollection", features: [] };
-
 // Shared by every marker <button>. Tailwind's preflight already strips the
 // button chrome; this adds a visible keyboard focus ring.
 const MARKER_BUTTON_CLASS = "block rounded-full cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
@@ -83,8 +79,10 @@ function MarkerPin({ icon, number, selected }) {
 }
 
 function ClusterBadge({ count }) {
-  // Bigger badge for bigger clusters, capped so it doesn't get absurd
-  const size = Math.min(36 + Math.log2(count) * 6, 60);
+  // Same size as a pin marker, whatever the count. Scaling the badge with
+  // the count made big clusters loom over the pins around them; the number
+  // already says how many stops are inside.
+  const size = 36;
   return (
     <div style={{
       background: "#1f2937",
@@ -110,30 +108,6 @@ function pinAriaLabel(pin, number) {
   return number != null ? `Stop ${number}: ${pin.label}, ${category}` : `${pin.label}, ${category}`;
 }
 
-// Draws the stops in order as one line. Added under every other layer's
-// labels would hide it under roads at some zooms, so it goes on top of the
-// basemap; the DOM markers always sit above the canvas anyway.
-function syncRoute(map, routeCoords) {
-  const data = routeCoords.length >= 2
-    ? { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: routeCoords } }
-    : EMPTY_ROUTE;
-  const source = map.getSource(ROUTE_SOURCE);
-  if (source) {
-    source.setData(data);
-    return;
-  }
-  map.addSource(ROUTE_SOURCE, { type: "geojson", data });
-  map.addLayer({
-    id: ROUTE_LAYER,
-    type: "line",
-    source: ROUTE_SOURCE,
-    layout: { "line-join": "round", "line-cap": "round" },
-    // Placeholder styling in the app's existing blue; the visual redesign
-    // will restyle it
-    paint: { "line-color": "#2563eb", "line-width": 3, "line-opacity": 0.65 },
-  });
-}
-
 // homeView is the current trip's view (see tripHomeView): where the map
 // starts, and where the Home button returns to. Moving the map when the trip
 // changes is up to the parent, since only it knows a switch happened.
@@ -148,7 +122,6 @@ export default function Map({
 }) {
   const containerRef = useRef(null);
   const [initError, setInitError] = useState(null);
-  const [styleReady, setStyleReady] = useState(false);
   // Small cluster's stop list: { pins, x, y } in container pixels, or null
   const [clusterList, setClusterList] = useState(null);
   // key ("pin:<id>" / "cluster:<id>") -> { marker, root, el, signature }
@@ -219,8 +192,6 @@ export default function Map({
       map.addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
     });
 
-    map.once("load", () => setStyleReady(true));
-
     // Marker <button>s live inside MapLibre's canvas container, so a click
     // on one bubbles up and fires the map's own click event too. Without
     // this check, clicking a second pin would open it and immediately close
@@ -251,13 +222,6 @@ export default function Map({
       mapRef.current = null;
     };
   }, [mapRef]);
-
-  // The route through every stop, in order
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !styleReady) return;
-    syncRoute(map, pins.map((p) => p.lngLat).filter((c) => Array.isArray(c) && c.length === 2));
-  }, [mapRef, styleReady, pins]);
 
   // Markers (clusters + individual pins), updated whenever the pins, the
   // selection or the viewport change. Existing markers are kept and only

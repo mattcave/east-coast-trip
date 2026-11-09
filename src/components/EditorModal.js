@@ -613,7 +613,7 @@ export default function EditorModal({
   };
 
   return (
-    <div className="absolute top-0 right-0 h-full w-full sm:w-80 bg-white shadow-2xl flex flex-col z-10">
+    <div className="absolute top-0 right-0 h-full w-full sm:w-[380px] lg:w-[440px] bg-white shadow-2xl flex flex-col z-10">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         {tab === "pins" && view === "form" ? (
@@ -693,7 +693,7 @@ export default function EditorModal({
                     <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: color }}>
                       <Icon size={12} color="white" />
                     </div>
-                    <span className="min-w-0 flex-1 text-sm font-medium text-gray-800 truncate">{pin.label}</span>
+                    <span className="min-w-0 flex-1 text-sm font-medium text-gray-800 leading-snug line-clamp-2 break-words" title={pin.label}>{pin.label}</span>
                     <div className="flex flex-col flex-shrink-0">
                       <button
                         type="button"
