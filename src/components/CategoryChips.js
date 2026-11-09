@@ -1,18 +1,50 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { PIN_ICONS } from "@/lib/icons";
 
 // Filter chips for the categories a trip uses. Each chip's dot is the
 // marker colour, so the row doubles as the map's legend. Nothing selected
 // shows every stop; selecting chips narrows the map to those categories.
+//
+// On a phone the row is wider than the screen and scrolls sideways, which
+// nothing showed: it just ended at a chip. While there's more to the right,
+// the chips fade out at the right edge. It's a mask on the chips rather
+// than a white overlay, because the row floats over the map and a white
+// band would show up as a smear across it.
+const FADE = "linear-gradient(to right, black calc(100% - 40px), transparent)";
+
 export default function CategoryChips({ categories, selected, onToggle, onClear }) {
+  const rowRef = useRef(null);
+  const [moreRight, setMoreRight] = useState(false);
+
+  useEffect(() => {
+    const row = rowRef.current;
+    if (!row) return;
+    const update = () => setMoreRight(row.scrollLeft + row.clientWidth < row.scrollWidth - 1);
+    update();
+    row.addEventListener("scroll", update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(row);
+    return () => {
+      row.removeEventListener("scroll", update);
+      observer.disconnect();
+    };
+  // Chips come and go (Show all), which changes the scroll width
+  }, [categories, selected.size]);
+
   return (
     <div
+      ref={rowRef}
       role="group"
       aria-label="Filter stops by category"
       className="flex max-w-full gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden"
-      style={{ scrollbarWidth: "none" }}
+      style={{
+        scrollbarWidth: "none",
+        maskImage: moreRight ? FADE : undefined,
+        WebkitMaskImage: moreRight ? FADE : undefined,
+      }}
     >
       {categories.map((key) => {
         const { label, color } = PIN_ICONS[key];

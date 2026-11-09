@@ -12,11 +12,16 @@ import { prefersReducedMotion } from "@/lib/trips";
 // The plain `search?api=1&query=` URL ignores a `zoom` param and always
 // opens at Google's default place zoom, so a specific coordinate + zoom
 // needs the "/@lat,lng,zoomz" form instead. Web Mercator zoom levels match
-// MapLibre's, so the app's current zoom carries over directly.
+// MapLibre's, so the app's zoom carries over directly, but never below 15:
+// at the trip-wide view the map is at zoom 3-6, which would open Google
+// Maps on half a continent instead of the place.
+const MIN_GOOGLE_MAPS_ZOOM = 15;
+
 function googleMapsUrl(lngLat, zoom) {
   const lat = Array.isArray(lngLat) ? lngLat[1] : lngLat.lat;
   const lng = Array.isArray(lngLat) ? lngLat[0] : lngLat.lng;
-  return `https://www.google.com/maps/place/${lat},${lng}/@${lat},${lng},${Math.round(zoom ?? 14)}z`;
+  const z = Math.round(Math.max(zoom ?? MIN_GOOGLE_MAPS_ZOOM, MIN_GOOGLE_MAPS_ZOOM));
+  return `https://www.google.com/maps/place/${lat},${lng}/@${lat},${lng},${z}z`;
 }
 
 // Keyboard shortcuts shouldn't fire while the user is typing in a field.
@@ -362,6 +367,8 @@ export default function PinPopup({
         onClose={onClose}
         panelRef={panelRef}
         bodyRef={scrollRef}
+        mobileSnap
+        snapKey={pin.id}
       >
         <PhotoCarousel
           key={pin.id}

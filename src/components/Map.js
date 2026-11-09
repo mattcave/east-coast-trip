@@ -8,7 +8,7 @@ import Supercluster from "supercluster";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Camera } from "lucide-react";
 import { PIN_ICONS } from "@/lib/icons";
-import { pinImages } from "@/lib/pins";
+import { pinImages, clusterLabel } from "@/lib/pins";
 import { flyToView, initialMapOptions } from "@/lib/trips";
 import ClusterList from "./ClusterList";
 
@@ -103,7 +103,7 @@ function MarkerPin({ icon, number, selected, hasPhotos }) {
   );
 }
 
-function ClusterBadge({ count }) {
+function ClusterBadge({ text }) {
   // Same size as a pin marker, whatever the count. Scaling the badge with
   // the count made big clusters loom over the pins around them; the number
   // already says how many stops are inside.
@@ -120,10 +120,12 @@ function ClusterBadge({ count }) {
       justifyContent: "center",
       border: "2px solid white",
       boxShadow: "0 2px 6px rgba(0,0,0,0.35)",
-      fontSize: 13,
+      // A range like "38–41" is wider than a count, so it gets a smaller size
+      fontSize: text.length > 3 ? 10 : 13,
       fontWeight: 600,
+      letterSpacing: text.length > 3 ? "-0.02em" : undefined,
     }}>
-      {count}
+      {text}
     </div>
   );
 }
@@ -293,13 +295,17 @@ export default function Map({
 
     const selectedPin = pins.find((p) => p.id === selectedPinId) ?? null;
     const pinsById = new globalThis.Map(pins.map((p) => [p.id, p]));
-    // Each cluster carries the lowest stop number inside it, which sets its
-    // place in the keyboard tab order (see placeInStopOrder)
+    // Each cluster carries the lowest and highest stop numbers inside it:
+    // the lowest sets its place in the keyboard tab order (see
+    // placeInStopOrder), and both give its range label (see clusterLabel)
     const index = new Supercluster({
       radius: CLUSTER_RADIUS,
       maxZoom: CLUSTER_MAX_ZOOM,
-      map: (props) => ({ firstStop: props.stopNumber }),
-      reduce: (acc, props) => { acc.firstStop = Math.min(acc.firstStop, props.firstStop); },
+      map: (props) => ({ firstStop: props.stopNumber, lastStop: props.stopNumber }),
+      reduce: (acc, props) => {
+        acc.firstStop = Math.min(acc.firstStop, props.firstStop);
+        acc.lastStop = Math.max(acc.lastStop, props.lastStop);
+      },
     }).load(
       pins
         .filter((pin) => pin !== selectedPin)
@@ -352,7 +358,8 @@ export default function Map({
         const lngLat = feature.geometry.coordinates;
 
         if (feature.properties.cluster) {
-          const { cluster_id: clusterId, point_count: count } = feature.properties;
+          const { cluster_id: clusterId, point_count: count, firstStop, lastStop } = feature.properties;
+          const label = clusterLabel({ count, firstStop, lastStop });
           const key = `cluster:${clusterId}`;
           wanted.add(key);
           const entry = markers.get(key) ?? createMarker(key, lngLat, (el) => {
@@ -379,11 +386,11 @@ export default function Map({
               flyToView(map, { center: at, zoom: expansionZoom });
             });
           });
-          const signature = JSON.stringify([count, lngLat]);
+          const signature = JSON.stringify([label.text, lngLat]);
           if (entry.signature !== signature) {
             entry.marker.setLngLat(lngLat);
-            entry.el.setAttribute("aria-label", `Cluster of ${count} stops`);
-            entry.root.render(<ClusterBadge count={count} />);
+            entry.el.setAttribute("aria-label", label.ariaLabel);
+            entry.root.render(<ClusterBadge text={label.text} />);
             entry.signature = signature;
           }
           placeInStopOrder(entry.el, feature.properties.firstStop);

@@ -134,3 +134,18 @@ export function searchWithStop(search, stopId) {
   const query = params.toString();
   return query ? `?${query}` : "";
 }
+
+// A cluster's label. Cluster counts and stop number badges are both plain
+// numbers, so a cluster of 7 read as stop 7. When the cluster's stops are
+// consecutive in trip order, it's labelled with their range instead
+// ("5–7"). firstStop/lastStop are the lowest and highest stop numbers in
+// it; with distinct numbers, they're consecutive exactly when the range
+// spans `count` stops.
+export function clusterLabel({ count, firstStop, lastStop }) {
+  const consecutive = Number.isFinite(firstStop) && Number.isFinite(lastStop)
+    && count > 1 && lastStop - firstStop + 1 === count;
+  if (consecutive) {
+    return { text: `${firstStop}–${lastStop}`, ariaLabel: `Stops ${firstStop} to ${lastStop}` };
+  }
+  return { text: String(count), ariaLabel: `Cluster of ${count} stops` };
+}

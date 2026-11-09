@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sortPins, nextOrder, applyOrder, moveItem, sanitizePinDate, formatPinDate, pinImages, matchesStopQuery, pinLinksToWikipedia, tripSummaryFacts, stopIdFromSearch, searchWithStop } from "./pins";
+import { sortPins, nextOrder, applyOrder, moveItem, sanitizePinDate, formatPinDate, pinImages, matchesStopQuery, pinLinksToWikipedia, tripSummaryFacts, stopIdFromSearch, searchWithStop, clusterLabel } from "./pins";
 
 const ids = (pins) => pins.map((p) => p.id);
 
@@ -217,5 +217,22 @@ describe("searchWithStop", () => {
   it("keeps other params", () => {
     expect(searchWithStop("?x=1&stop=a", null)).toBe("?x=1");
     expect(searchWithStop("?x=1", "a")).toBe("?x=1&stop=a");
+  });
+});
+
+describe("clusterLabel", () => {
+  it("labels consecutive stops with their range", () => {
+    expect(clusterLabel({ count: 3, firstStop: 5, lastStop: 7 })).toEqual({ text: "5–7", ariaLabel: "Stops 5 to 7" });
+    expect(clusterLabel({ count: 2, firstStop: 12, lastStop: 13 })).toEqual({ text: "12–13", ariaLabel: "Stops 12 to 13" });
+  });
+
+  it("keeps the count when there's a gap", () => {
+    // Stop 6 is open (and so outside the cluster), or filtered out
+    expect(clusterLabel({ count: 2, firstStop: 5, lastStop: 7 })).toEqual({ text: "2", ariaLabel: "Cluster of 2 stops" });
+  });
+
+  it("keeps the count when stop numbers are unknown", () => {
+    expect(clusterLabel({ count: 4 })).toEqual({ text: "4", ariaLabel: "Cluster of 4 stops" });
+    expect(clusterLabel({ count: 4, firstStop: Infinity, lastStop: -Infinity }).text).toBe("4");
   });
 });

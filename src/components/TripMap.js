@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback, useSyncExternalStore } from "react";
 import { useParams } from "next/navigation";
 import { Pencil, HelpCircle, List } from "lucide-react";
 import Map from "./Map";
@@ -20,9 +20,47 @@ import { tripCategories, filterPinsByCategory } from "@/lib/categories";
 // (and rebuild its markers) on every render
 const NO_PINS = [];
 
-// Height of the trip menu and the buttons along the top of the map (top-4
-// plus a ~36px pill, with a little breathing room)
-const TOP_CONTROLS_HEIGHT = 60;
+// Space kept between the top bar and a stop eased into the strip below it,
+// so the enlarged selected marker and its number badge clear the bar
+const TOP_BAR_GAP = 12;
+
+// Phone layout (below Tailwind's sm breakpoint), where panels are bottom
+// sheets. Read with useSyncExternalStore so it follows rotation and
+// resizing; the server render assumes desktop.
+const MOBILE_QUERY = "(max-width: 639px)";
+function subscribeMobile(callback) {
+  const query = window.matchMedia(MOBILE_QUERY);
+  query.addEventListener("change", callback);
+  return () => query.removeEventListener("change", callback);
+}
+const useIsMobile = () => useSyncExternalStore(
+  subscribeMobile,
+  () => window.matchMedia(MOBILE_QUERY).matches,
+  () => false
+);
+
+// The map padding that keeps a point clear of an open panel, measured from
+// the page rather than fixed numbers, since the sheet's height depends on
+// the stop and the screen. Docked right (desktop): the panel's width.
+// Bottom sheet (mobile): the sheet's height, plus the top bar (trip menu
+// and Stops) along the top, so the stop lands in the middle of the strip
+// of map that's actually visible between them.
+function measurePanelInset(map, panel, topBar) {
+  const inset = { top: 0, right: 0, bottom: 0, left: 0 };
+  const rect = panel?.getBoundingClientRect();
+  if (!map || !rect) return inset;
+  if (rect.left > 0) {
+    inset.right = Math.round(rect.width);
+    return inset;
+  }
+  const mapRect = map.getContainer().getBoundingClientRect();
+  inset.bottom = Math.max(0, Math.round(mapRect.bottom - rect.top));
+  const bar = topBar?.getBoundingClientRect();
+  if (bar) inset.top = Math.max(0, Math.round(bar.bottom - mapRect.top) + TOP_BAR_GAP);
+  return inset;
+}
+
+const insetChanged = (a, b) => ["top", "right", "bottom", "left"].some((k) => Math.abs(a[k] - b[k]) >= 4);
 
 // Stands in for a trip id when tracking which view the map last flew to
 const OVERVIEW = Symbol("overview");
@@ -124,6 +162,9 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   // The open panel (a stop or the stops list), measured to keep the stop
   // clear of it
   const panelRef = useRef(null);
+  // The top bar (trip menu, Stops, chips), measured for the same reason
+  const topBarRef = useRef(null);
+  const isMobile = useIsMobile();
   // Only one thing uses the right-hand panel at a time: a stop, the stops
   // list, or the admin editor. Opening one closes the others.
   const [stopsListOpen, setStopsListOpen] = useState(false);
@@ -211,26 +252,41 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
       else setMapInset(map);
       return;
     }
-    const rect = panelRef.current?.getBoundingClientRect();
-    let inset = { top: 0, right: 0, bottom: 0, left: 0 };
-    if (rect) {
-      // Docked right (desktop) vs a bottom sheet (mobile). On mobile the
-      // stop goes in the strip between the trip menu and the top of the
-      // sheet. With a tall sheet on a short phone that strip can be under
-      // 100px, so the menu's space is only kept clear when there's room.
-      if (rect.left > 0) {
-        inset.right = rect.width;
-      } else {
-        inset.bottom = rect.height;
-        if (window.innerHeight - rect.height > TOP_CONTROLS_HEIGHT + 48) inset.top = TOP_CONTROLS_HEIGHT;
-      }
-    }
+    const inset = measurePanelInset(map, panelRef.current, topBarRef.current);
     lastInsetRef.current = { inset, lngLat: selectedLngLat };
     easeToPoint(map, selectedLngLat, { inset });
   // Keyed on the coordinates' values so a refresh that hands back an equal
   // array doesn't re-ease
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPinId, selectedLngLat?.[0], selectedLngLat?.[1]]);
+
+  // The sheet changes size after it opens: dragged between 55% and 85%, or
+  // as the Wikipedia summary loads in. The top bar changes too, when the
+  // chips row hides. Re-centre the stop once the size settles (debounced,
+  // since a resize fires on every frame of the sheet's snap animation).
+  useEffect(() => {
+    const map = mapRef.current;
+    const panel = panelRef.current;
+    if (!map || !panel || !selectedPinId) return;
+    let timer = null;
+    const observer = new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const last = lastInsetRef.current;
+        if (!last) return;
+        const inset = measurePanelInset(map, panelRef.current, topBarRef.current);
+        if (!insetChanged(inset, last.inset)) return;
+        lastInsetRef.current = { inset, lngLat: last.lngLat };
+        easeToPoint(map, last.lngLat, { inset });
+      }, 150);
+    });
+    observer.observe(panel);
+    if (topBarRef.current) observer.observe(topBarRef.current);
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
+  }, [selectedPinId]);
 
   // Keep `?stop=` in the address bar in step with the open stop, so the URL
   // can be copied and shared at any point. replaceState rather than
@@ -384,10 +440,15 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   const goToNext = useCallback(() => { if (nextStop) setSelectedPinId(nextStop.id); }, [nextStop]);
   const getZoom = useCallback(() => mapRef.current?.getZoom(), []);
 
+  // The chips row only shows for trips with two or more categories. It's
+  // hidden while a stop's sheet is open on a phone, where the strip of map
+  // above the sheet is small enough already.
+  const showChips = categories.length > 1 && !placementMode && !(isMobile && selectedPin);
+
   if (isUnknownTrip) return null;
 
   return (
-    <div className={`trip-map relative w-full h-full ${categories.length > 1 && !placementMode ? "with-category-chips" : ""}`}>
+    <div className={`trip-map relative w-full h-full ${showChips ? "with-category-chips" : ""}`}>
       {/* The floating controls come before the map in the DOM, though they
           sit on top of it (z-10), so keyboard users reach the trip menu,
           Stops and the filters before tabbing through the markers */}
@@ -395,7 +456,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
           below. The wrapper ignores clicks so the map stays usable in the
           gaps; the right margin leaves room for the help/Admin button. */}
       {!placementMode && (
-        <div className="pointer-events-none absolute top-4 left-4 right-4 z-10 flex flex-col items-start gap-2">
+        <div ref={topBarRef} className="pointer-events-none absolute top-4 left-4 right-4 z-10 flex flex-col items-start gap-2">
           <div className="pointer-events-auto flex max-w-[calc(100%-6.5rem)] items-start gap-2">
             <TripSwitcher
               trips={trips}
@@ -414,7 +475,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
               </button>
             )}
           </div>
-          {categories.length > 1 && (
+          {showChips && (
             <div className="pointer-events-auto max-w-full">
               <CategoryChips
                 categories={categories}
