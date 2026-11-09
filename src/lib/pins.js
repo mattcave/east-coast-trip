@@ -97,3 +97,40 @@ export function matchesStopQuery(pin, query) {
   const label = foldForSearch(pin?.label);
   return words.every((w) => label.includes(w));
 }
+
+// A pin shows a Wikipedia summary unless it's switched off: `null` looks up
+// the nearest article automatically, a URL shows that article
+export function pinLinksToWikipedia(pin) {
+  return Boolean(pin) && pin.wikipedia !== "none";
+}
+
+// Which of the trip summary's claims are true for these pins, worked out
+// from the content so the summary can't overpromise. The photo line needs at
+// least half the stops to have photos; the Wikipedia line needs one stop.
+export function tripSummaryFacts(pins = []) {
+  const withPhotos = pins.filter((p) => pinImages(p).length > 0).length;
+  return {
+    photos: pins.length > 0 && withPhotos * 2 >= pins.length,
+    wikipedia: pins.some(pinLinksToWikipedia),
+  };
+}
+
+// Links to a single stop look like /trips/<trip>?stop=<pinId>
+export const STOP_PARAM = "stop";
+
+// The pin id in a `?stop=` query string, if it's one of these stops.
+// Anything else (missing, unknown, another trip's pin) gives null.
+export function stopIdFromSearch(search, stops = []) {
+  const id = new URLSearchParams(search ?? "").get(STOP_PARAM);
+  return id && stops.some((p) => p.id === id) ? id : null;
+}
+
+// The query string with `?stop=` set to stopId, or removed when stopId is
+// null. Other params are kept. Returns "" or a string starting with "?".
+export function searchWithStop(search, stopId) {
+  const params = new URLSearchParams(search ?? "");
+  if (stopId) params.set(STOP_PARAM, stopId);
+  else params.delete(STOP_PARAM);
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}

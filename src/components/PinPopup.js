@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, ChevronLeft, ChevronRight, List } from "lucide-react";
+import { ExternalLink, ChevronLeft, ChevronRight, List, Link2, Check } from "lucide-react";
 import PhotoViewer from "./PhotoViewer";
 import SidePanel from "./SidePanel";
 import { pinImages, formatPinDate } from "@/lib/pins";
@@ -202,6 +202,62 @@ function WikiSection({ pin }) {
   );
 }
 
+// Copies text to the clipboard. The Clipboard API only exists in secure
+// contexts (https or localhost), so a plain-http visit falls back to the
+// older execCommand copy from a throwaway textarea. Resolves true on success.
+async function copyText(text) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Permission denied or not focused - try the fallback
+  }
+  try {
+    const field = document.createElement("textarea");
+    field.value = text;
+    field.setAttribute("readonly", "");
+    field.style.position = "fixed";
+    field.style.opacity = "0";
+    document.body.appendChild(field);
+    field.select();
+    const ok = document.execCommand("copy");
+    field.remove();
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+// "Copy link" for sharing this stop, with a short confirmation in place of
+// the label that screen readers also hear
+function CopyLinkButton({ href }) {
+  const [status, setStatus] = useState(null); // null | "copied" | "failed"
+  const timerRef = useRef(null);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const copy = async () => {
+    const ok = await copyText(new URL(href, window.location.origin).href);
+    setStatus(ok ? "copied" : "failed");
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setStatus(null), 2000);
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+    >
+      {status === "copied" ? <Check size={12} aria-hidden="true" /> : <Link2 size={12} aria-hidden="true" />}
+      <span aria-live="polite">
+        {status === "copied" ? "Link copied" : status === "failed" ? "Couldn't copy" : "Copy link"}
+      </span>
+    </button>
+  );
+}
+
 function StepButton({ direction, target, onClick }) {
   const isPrev = direction === "prev";
   const Icon = isPrev ? ChevronLeft : ChevronRight;
@@ -230,7 +286,7 @@ function StepButton({ direction, target, onClick }) {
 // while it's open (when `keyboardEnabled`); SidePanel handles Escape.
 export default function PinPopup({
   pin, stopNumber, stopCount, prev, next, onPrev, onNext, onClose, onEdit, onBackToList,
-  getZoom, panelRef, keyboardEnabled = true,
+  shareHref, getZoom, panelRef, keyboardEnabled = true,
 }) {
   const [viewer, setViewer] = useState(null); // { index } while the full-screen viewer is open
   const [scrollRequest, setScrollRequest] = useState(null);
@@ -322,7 +378,7 @@ export default function PinPopup({
             </p>
           )}
 
-          <div className={pin.description ? "mt-2" : undefined}>
+          <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 ${pin.description ? "mt-2" : ""}`}>
             <a
               href={googleMapsUrl(pin.lngLat, getZoom?.())}
               target="_blank"
@@ -332,6 +388,8 @@ export default function PinPopup({
               <ExternalLink size={12} />
               View on Google Maps
             </a>
+            {/* Keyed by stop so the confirmation doesn't carry over */}
+            {shareHref && <CopyLinkButton key={pin.id} href={shareHref} />}
           </div>
 
           <WikiSection pin={pin} />

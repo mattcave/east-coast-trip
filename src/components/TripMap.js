@@ -13,7 +13,7 @@ import TripSwitcher from "./TripSwitcher";
 import StopsList from "./StopsList";
 import CategoryChips from "./CategoryChips";
 import { tripHomeView, overviewHomeView, flyToView, easeToPoint, setMapInset } from "@/lib/trips";
-import { sortPins } from "@/lib/pins";
+import { sortPins, stopIdFromSearch, searchWithStop } from "@/lib/pins";
 import { tripCategories, filterPinsByCategory } from "@/lib/categories";
 
 // Stable empty array so a trip without pins doesn't hand Map a new array
@@ -92,13 +92,9 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   // shows its summary depends on localStorage, which isn't available during
   // SSR, so that has to wait for an effect - reading it during render would
   // make the client's first render diverge from the server's and break
-  // hydration. The effect also re-runs on client-side navigation between trips.
+  // hydration. The effect (further down, after the per-trip state it also
+  // sets) re-runs on client-side navigation between trips.
   const [overlay, setOverlay] = useState(isRoot ? "chooser" : null);
-  useEffect(() => {
-    if (isUnknownTrip) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncs with the route and localStorage, neither readable during SSR
-    setOverlay(isRoot ? "chooser" : isSummaryDismissed(trip.id) ? null : "summary");
-  }, [isRoot, trip.id, isUnknownTrip]);
 
   // While the chooser is open at "/", no trip has been picked yet, so the
   // map shows a pin-free overview of where all the trips are rather than the
@@ -160,6 +156,35 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
     setPlacementMode(false);
   }
 
+  // Shows the trip summary or chooser on arrival (see `overlay` above).
+  // Set while a stop from a `?stop=` link is being opened, so the URL sync
+  // further down doesn't strip the param in the render before it's selected
+  const stopLinkPendingRef = useRef(false);
+  useEffect(() => {
+    if (isUnknownTrip) return;
+    if (isRoot) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncs with the route and localStorage, neither readable during SSR
+      setOverlay("chooser");
+      return;
+    }
+    // A link to one stop (/trips/<id>?stop=<pinId>) skips the summary and
+    // opens that stop; the selection effect eases the map to it. Read from
+    // window.location rather than useSearchParams, which would need a
+    // Suspense boundary around this whole client-rendered map, and only on
+    // arrival, so it's a one-way read. An unknown id is ignored.
+    const linkedStopId = stopIdFromSearch(window.location.search, stops);
+    if (linkedStopId) {
+      stopLinkPendingRef.current = true;
+      setOverlay(null);
+      setOpenedFromList(false);
+      setSelectedPinId(linkedStopId);
+      return;
+    }
+    setOverlay(isSummaryDismissed(trip.id) ? null : "summary");
+  // Only on arrival at a trip, not every time its pins change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRoot, trip.id, isUnknownTrip]);
+
   // When a stop opens (or the visitor steps to another), ease the map so it
   // sits in the part of the map the panel doesn't cover: left of the docked
   // panel on desktop, above the bottom sheet on mobile. When the panel
@@ -206,6 +231,27 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   // array doesn't re-ease
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPinId, selectedLngLat?.[0], selectedLngLat?.[1]]);
+
+  // Keep `?stop=` in the address bar in step with the open stop, so the URL
+  // can be copied and shared at any point. replaceState rather than
+  // router.replace: it doesn't add a history entry per stop, and it doesn't
+  // make a server round trip on every step. Next's patched replaceState
+  // keeps useParams/useSearchParams in sync. It needs `null` (not the
+  // current history.state, which carries Next's own marker and would skip
+  // that sync). Only trip pages get the param; "/" has no single trip to
+  // link into.
+  const openStopId = selectedPin?.id ?? null;
+  useEffect(() => {
+    if (isRoot || isUnknownTrip) return;
+    if (stopLinkPendingRef.current) {
+      if (!openStopId) return;
+      stopLinkPendingRef.current = false;
+    }
+    const { pathname, search, hash } = window.location;
+    const nextSearch = searchWithStop(search, openStopId);
+    if (nextSearch === search) return;
+    window.history.replaceState(null, "", `${pathname}${nextSearch}${hash}`);
+  }, [openStopId, isRoot, isUnknownTrip]);
 
   // Fly to the new view when the trip changes, or when the root overview
   // opens or closes. The map already starts at the initial view, so that one
@@ -430,7 +476,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
       {overlay === "summary" && (
         <TripSummary
           trip={trip}
-          pinCount={tripPins.length}
+          pins={tripPins}
           onClose={closeSummary}
           onShowAllTrips={trips.length > 1 ? () => { closeSummary(); setOverlay("chooser"); } : null}
         />
@@ -486,6 +532,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
           stopNumber={stopNumbers[selectedPin.id]}
           stopCount={stops.length}
           onBackToList={openedFromList ? openStopsList : null}
+          shareHref={`/trips/${trip.id}${searchWithStop("", selectedPin.id)}`}
           prev={prevStop}
           next={nextStop}
           onPrev={goToPrev}

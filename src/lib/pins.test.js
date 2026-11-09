@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sortPins, nextOrder, applyOrder, moveItem, sanitizePinDate, formatPinDate, pinImages, matchesStopQuery } from "./pins";
+import { sortPins, nextOrder, applyOrder, moveItem, sanitizePinDate, formatPinDate, pinImages, matchesStopQuery, pinLinksToWikipedia, tripSummaryFacts, stopIdFromSearch, searchWithStop } from "./pins";
 
 const ids = (pins) => pins.map((p) => p.id);
 
@@ -152,5 +152,70 @@ describe("matchesStopQuery", () => {
   it("needs every word, in any order", () => {
     expect(matchesStopQuery(pin, "harbour chet")).toBe(true);
     expect(matchesStopQuery(pin, "harbour beach")).toBe(false);
+  });
+});
+
+describe("pinLinksToWikipedia", () => {
+  it("is true for auto lookup (null) and a specific article", () => {
+    expect(pinLinksToWikipedia({ wikipedia: null })).toBe(true);
+    expect(pinLinksToWikipedia({})).toBe(true);
+    expect(pinLinksToWikipedia({ wikipedia: "https://en.wikipedia.org/wiki/Halifax" })).toBe(true);
+  });
+
+  it("is false when switched off", () => {
+    expect(pinLinksToWikipedia({ wikipedia: "none" })).toBe(false);
+    expect(pinLinksToWikipedia(null)).toBe(false);
+  });
+});
+
+describe("tripSummaryFacts", () => {
+  const photo = { images: ["/uploads/a.jpg"], wikipedia: "none" };
+  const bare = { images: [], wikipedia: "none" };
+
+  it("shows the photo line when at least half the stops have photos", () => {
+    expect(tripSummaryFacts([photo, bare]).photos).toBe(true);
+    expect(tripSummaryFacts([photo, bare, bare]).photos).toBe(false);
+    expect(tripSummaryFacts([{ image: "/uploads/b.jpg" }]).photos).toBe(true);
+  });
+
+  it("shows neither line for a trip with no pins", () => {
+    expect(tripSummaryFacts([])).toEqual({ photos: false, wikipedia: false });
+    expect(tripSummaryFacts()).toEqual({ photos: false, wikipedia: false });
+  });
+
+  it("shows the Wikipedia line when any stop links to Wikipedia", () => {
+    expect(tripSummaryFacts([bare, bare]).wikipedia).toBe(false);
+    expect(tripSummaryFacts([bare, { wikipedia: null }]).wikipedia).toBe(true);
+  });
+});
+
+describe("stopIdFromSearch", () => {
+  const stops = [{ id: "a" }, { id: "b" }];
+
+  it("returns a known stop id", () => {
+    expect(stopIdFromSearch("?stop=b", stops)).toBe("b");
+    expect(stopIdFromSearch("stop=a&x=1", stops)).toBe("a");
+  });
+
+  it("ignores missing and unknown ids", () => {
+    expect(stopIdFromSearch("", stops)).toBe(null);
+    expect(stopIdFromSearch("?stop=", stops)).toBe(null);
+    expect(stopIdFromSearch("?stop=zzz", stops)).toBe(null);
+    expect(stopIdFromSearch("?stop=a", [])).toBe(null);
+    expect(stopIdFromSearch(undefined, stops)).toBe(null);
+  });
+});
+
+describe("searchWithStop", () => {
+  it("sets, replaces and removes the stop param", () => {
+    expect(searchWithStop("", "a")).toBe("?stop=a");
+    expect(searchWithStop("?stop=a", "b")).toBe("?stop=b");
+    expect(searchWithStop("?stop=a", null)).toBe("");
+    expect(searchWithStop("", null)).toBe("");
+  });
+
+  it("keeps other params", () => {
+    expect(searchWithStop("?x=1&stop=a", null)).toBe("?x=1");
+    expect(searchWithStop("?x=1", "a")).toBe("?x=1&stop=a");
   });
 });

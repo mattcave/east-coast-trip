@@ -3,16 +3,24 @@
 import { X, MapPin, Camera, BookOpen } from "lucide-react";
 import Sheet from "./Sheet";
 import { formatTripDates } from "@/lib/trips";
+import { tripSummaryFacts } from "@/lib/pins";
 
-const TIPS = [
-  { icon: MapPin, text: "Tap any pin to relive that stop - photos, a little story, and exactly where we were." },
-  { icon: Camera, text: "Every stop has our own photos and a few words about what made it worth remembering." },
-  { icon: BookOpen, text: "Want to know more about a place? Most pins link out to Wikipedia so you can dig in." },
-];
+// The photo and Wikipedia tips only appear when the trip's pins back them
+// up (see tripSummaryFacts), so the summary never promises what isn't there
+function summaryTips(pins) {
+  const facts = tripSummaryFacts(pins);
+  return [
+    { icon: MapPin, text: "Tap any pin to relive that stop - photos, a little story, and exactly where we were." },
+    facts.photos && { icon: Camera, text: "Lots of stops have our own photos and a few words about what made them worth remembering." },
+    facts.wikipedia && { icon: BookOpen, text: "Want to know more about a place? Some stops link out to Wikipedia so you can dig in." },
+  ].filter(Boolean);
+}
 
 // Introduces one trip. Shown the first time a visitor opens a trip page, and
 // reopenable from the help button. Visibility is controlled by TripMap.
-export default function TripSummary({ trip, pinCount, onClose, onShowAllTrips }) {
+export default function TripSummary({ trip, pins, onClose, onShowAllTrips }) {
+  const pinCount = pins.length;
+  const tips = summaryTips(pins);
   const dates = formatTripDates(trip);
   const meta = [dates, `${pinCount} ${pinCount === 1 ? "stop" : "stops"}`].filter(Boolean).join(" · ");
   const intro = trip.intro || trip.description;
@@ -39,7 +47,7 @@ export default function TripSummary({ trip, pinCount, onClose, onShowAllTrips })
         )}
 
         <ul className="mt-4 flex flex-col gap-3">
-          {TIPS.map(({ icon: Icon, text }) => (
+          {tips.map(({ icon: Icon, text }) => (
             <li key={text} className="flex items-start gap-3">
               <span className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center">
                 <Icon size={14} className="text-blue-600" />
