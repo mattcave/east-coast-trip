@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getTrip } from "@/lib/store";
 
 // The map itself is rendered by the shared (map) layout, which reads the trip
@@ -14,8 +14,8 @@ export async function generateMetadata({ params }) {
 
 export default async function TripPage({ params }) {
   const { id } = await params;
-  // A deleted or mistyped trip goes to the site root (trip chooser) rather
-  // than a bare 404, which would render underneath the full-screen map
-  if (!(await getTrip(id))) redirect("/");
+  // A deleted or mistyped trip gets the site's 404 page (src/app/not-found.js),
+  // which lists the trips that do exist
+  if (!(await getTrip(id))) notFound();
   return null;
 }

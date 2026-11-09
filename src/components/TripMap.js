@@ -55,14 +55,24 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   const [trips, setTrips] = useState(initialTrips);
   const [defaultTripId, setDefaultTripId] = useState(initialDefaultTripId);
   const [pinsByTrip, setPinsByTrip] = useState(initialPinsByTrip);
+  // Trips deleted in this session from the admin panel. See isUnknownTrip.
+  const [deletedTripIds, setDeletedTripIds] = useState([]);
 
-  // "/" shows the default trip. An unknown id falls back the same way - the
-  // trip page redirects those to "/", but a just-deleted trip can still be
-  // in the URL for a moment.
+  // "/" shows the default trip, as does a trip deleted in this session
+  // while it's still in the URL (the admin panel navigates to "/" right
+  // after, and the map shouldn't be torn down in between).
   const trip = trips.find((t) => t.id === routeTripId)
     ?? trips.find((t) => t.id === defaultTripId)
     ?? trips[0];
   const tripPins = pinsByTrip[trip.id] ?? NO_PINS;
+
+  // A /trips/<id> that never existed renders the site's 404 page (the trip
+  // page calls notFound()). That page renders inside this layout, so the map
+  // has to stand aside, or it would cover the 404 with the default trip and
+  // its summary popup. Hooks below still run; the early return is at the end.
+  const isUnknownTrip = routeTripId !== null
+    && !trips.some((t) => t.id === routeTripId)
+    && !deletedTripIds.includes(routeTripId);
 
   // Which popup covers the map: the trip chooser, a trip summary, or neither.
   // "/" opens the chooser on every visit, and that's known at render time,
@@ -73,9 +83,10 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   // hydration. The effect also re-runs on client-side navigation between trips.
   const [overlay, setOverlay] = useState(isRoot ? "chooser" : null);
   useEffect(() => {
+    if (isUnknownTrip) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncs with the route and localStorage, neither readable during SSR
     setOverlay(isRoot ? "chooser" : isSummaryDismissed(trip.id) ? null : "summary");
-  }, [isRoot, trip.id]);
+  }, [isRoot, trip.id, isUnknownTrip]);
 
   // While the chooser is open at "/", no trip has been picked yet, so the
   // map shows a pin-free overview of where all the trips are rather than the
@@ -152,6 +163,9 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
     const res = await fetch("/api/trips");
     if (!res.ok) return;
     const config = await res.json();
+    const remaining = new Set(config.trips.map((t) => t.id));
+    const removed = trips.map((t) => t.id).filter((id) => !remaining.has(id));
+    if (removed.length) setDeletedTripIds((prev) => [...prev, ...removed]);
     setTrips(config.trips);
     setDefaultTripId(config.defaultTripId);
     // New trips start empty; deleted trips' pins are dropped
@@ -203,6 +217,8 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
     setPlacementMode(false);
     setModalOpen(true);
   };
+
+  if (isUnknownTrip) return null;
 
   return (
     <div className="relative w-full h-full">
