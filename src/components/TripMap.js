@@ -24,24 +24,26 @@ const NO_PINS = [];
 // so the enlarged selected marker and its number badge clear the bar
 const TOP_BAR_GAP = 12;
 
-// Phone layout (below Tailwind's sm breakpoint), where panels are bottom
-// sheets. Read with useSyncExternalStore so it follows rotation and
-// resizing; the server render assumes desktop.
-const MOBILE_QUERY = "(max-width: 639px)";
-function subscribeMobile(callback) {
-  const query = window.matchMedia(MOBILE_QUERY);
-  query.addEventListener("change", callback);
-  return () => query.removeEventListener("change", callback);
+// Two layout breakpoints. The stop panel and stops list are bottom sheets
+// below 1024px (phones and portrait tablets; see SidePanel). The trip
+// summary and chooser are bottom sheets only on phones, below 640px; on a
+// tablet they're centred cards. Read with useSyncExternalStore so they
+// follow rotation and resizing; the server render assumes desktop.
+const SHEET_LAYOUT_QUERY = "(max-width: 1023px)";
+const PHONE_QUERY = "(max-width: 639px)";
+function useMediaQuery(query) {
+  const subscribe = useCallback((callback) => {
+    const list = window.matchMedia(query);
+    list.addEventListener("change", callback);
+    return () => list.removeEventListener("change", callback);
+  }, [query]);
+  return useSyncExternalStore(subscribe, () => window.matchMedia(query).matches, () => false);
 }
-const useIsMobile = () => useSyncExternalStore(
-  subscribeMobile,
-  () => window.matchMedia(MOBILE_QUERY).matches,
-  () => false
-);
 
 // The map padding that keeps a point clear of an open panel, measured from
 // the page rather than fixed numbers, since the sheet's height depends on
-// the stop and the screen. Docked right (desktop): the panel's width.
+// the stop and the screen. Docked right (desktop, full height from the
+// top): the panel's width.
 // Bottom sheet (mobile): the sheet's height, plus the top bar (trip menu
 // and Stops) along the top, so the stop lands in the middle of the strip
 // of map that's actually visible between them.
@@ -49,11 +51,13 @@ function measurePanelInset(map, panel, topBar) {
   const inset = { top: 0, right: 0, bottom: 0, left: 0 };
   const rect = panel?.getBoundingClientRect();
   if (!map || !rect) return inset;
-  if (rect.left > 0) {
-    inset.right = Math.round(rect.width);
+  const mapRect = map.getContainer().getBoundingClientRect();
+  // A bottom sheet starts partway down; on a tablet it's also centred, so
+  // its left edge alone doesn't tell the two layouts apart
+  if (rect.top <= mapRect.top + 1) {
+    inset.right = Math.round(mapRect.right - rect.left);
     return inset;
   }
-  const mapRect = map.getContainer().getBoundingClientRect();
   inset.bottom = Math.max(0, Math.round(mapRect.bottom - rect.top));
   const bar = topBar?.getBoundingClientRect();
   if (bar) inset.top = Math.max(0, Math.round(bar.bottom - mapRect.top) + TOP_BAR_GAP);
@@ -176,7 +180,8 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   const sheetRef = useRef(null);
   // The stop whose marker is lit up while Previous/Next is hovered
   const [previewPinId, setPreviewPinId] = useState(null);
-  const isMobile = useIsMobile();
+  const isSheetLayout = useMediaQuery(SHEET_LAYOUT_QUERY);
+  const isPhone = useMediaQuery(PHONE_QUERY);
   // Only one thing uses the right-hand panel at a time: a stop, the stops
   // list, or the admin editor. Opening one closes the others.
   const [stopsListOpen, setStopsListOpen] = useState(false);
@@ -331,7 +336,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    if (overlay && isMobile) {
+    if (overlay && isPhone) {
       if (!sheetRef.current) return;
       fittedAboveSheetRef.current = true;
       flyToView(map, homeView, { inset: measurePanelInset(map, sheetRef.current, topBarRef.current) });
@@ -343,7 +348,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
     }
   // selectedPinId is read, not watched: this is about the sheet changing
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overlay, isMobile, homeView]);
+  }, [overlay, isPhone, homeView]);
 
   // Fly to the new view when the trip changes, or when the root overview
   // opens or closes. The map already starts at the initial view, so that one
@@ -487,10 +492,11 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   const getZoom = useCallback(() => mapRef.current?.getZoom(), []);
 
   // The chips row only shows for trips with two or more categories. It's
-  // hidden while a stop's sheet is open on a phone, where the strip of map
+  // hidden while a stop's sheet is open on a phone or tablet, where the strip of map
   // above the sheet is small enough already.
   // Same while the summary or chooser sheet covers the map on a phone.
-  const showChips = categories.length > 1 && !placementMode && !(isMobile && (selectedPin || overlay));
+  const showChips = categories.length > 1 && !placementMode
+    && !(isSheetLayout && selectedPin) && !(isPhone && overlay);
 
   if (isUnknownTrip) return null;
 
