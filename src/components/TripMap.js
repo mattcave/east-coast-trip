@@ -35,6 +35,14 @@ function isSummaryDismissed(tripId) {
   }
 }
 
+function markSummaryDismissed(tripId) {
+  try {
+    localStorage.setItem(summaryKey(tripId), "1");
+  } catch {
+    // ignore - worst case the summary reappears next visit
+  }
+}
+
 // Rendered once by the (map) layout and kept mounted across "/" and
 // "/trips/[id]", so the current trip comes from the URL on every render
 // rather than from props. Trips and pins are seeded from the server and then
@@ -118,11 +126,18 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
 
   const closeSummary = () => {
     setOverlay(null);
-    try {
-      localStorage.setItem(summaryKey(trip.id), "1");
-    } catch {
-      // ignore - worst case the summary reappears next visit
-    }
+    markSummaryDismissed(trip.id);
+  };
+
+  // Picking a trip in the chooser counts as having seen its summary: the
+  // chooser card already showed its name, dates and description, and a
+  // second popup straight after the first was one too many. The summary is
+  // for visitors who land on a trip page directly (e.g. a shared link), and
+  // stays reachable from the help button. Marked before the navigation
+  // lands, so the route-change effect above finds it dismissed.
+  const pickTripFromChooser = (tripId) => {
+    markSummaryDismissed(tripId);
+    setOverlay(null);
   };
 
   const refreshPins = async () => {
@@ -257,6 +272,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
           trips={trips}
           pinsByTrip={pinsByTrip}
           currentTripId={isRoot ? null : trip.id}
+          onPick={pickTripFromChooser}
           onClose={() => setOverlay(null)}
         />
       )}
