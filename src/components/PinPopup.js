@@ -151,7 +151,7 @@ function PhotoCarousel({ images, alt, onOpen, scrollRequest }) {
       {/* The row scrolls sideways, which clips anything outside it, so it's
           padded to leave room for the current thumbnail's ring (2px ring
           plus 2px offset) on every side */}
-      <div className="hidden gap-2 overflow-x-auto px-5 pt-3 pb-1.5 lg:flex" role="group" aria-label="Photos">
+      <div className="hidden gap-2 overflow-x-auto px-5 pt-3 pb-1.5 dock:flex" role="group" aria-label="Photos">
         {images.map((src, i) => (
           <button
             key={i}

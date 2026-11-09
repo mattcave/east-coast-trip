@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* The stop panel docks to the right only on a wide screen in landscape
+   (see DOCKED_PANEL_QUERY in src/lib/layout.js, which must match); on
+   phones and on tablets in portrait, whatever their width, it's a bottom
+   sheet. dock-wide is where the docked panel widens. */
+@custom-variant dock (@media (min-width: 1024px) and (orientation: landscape));
+@custom-variant dock-wide (@media (min-width: 1280px) and (orientation: landscape));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

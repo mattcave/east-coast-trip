@@ -15,6 +15,7 @@ import CategoryChips from "./CategoryChips";
 import { tripHomeView, overviewHomeView, flyToView, easeToPoint, setMapInset } from "@/lib/trips";
 import { sortPins, stopIdFromSearch, searchWithStop } from "@/lib/pins";
 import { tripCategories, filterPinsByCategory } from "@/lib/categories";
+import { DOCKED_PANEL_QUERY } from "@/lib/layout";
 
 // Stable empty array so a trip without pins doesn't hand Map a new array
 // (and rebuild its markers) on every render
@@ -25,11 +26,11 @@ const NO_PINS = [];
 const TOP_BAR_GAP = 12;
 
 // Two layout breakpoints. The stop panel and stops list are bottom sheets
-// below 1024px (phones and portrait tablets; see SidePanel). The trip
+// unless the screen is wide and in landscape (phones and portrait tablets;
+// see DOCKED_PANEL_QUERY). The trip
 // summary and chooser are bottom sheets only on phones, below 640px; on a
 // tablet they're centred cards. Read with useSyncExternalStore so they
 // follow rotation and resizing; the server render assumes desktop.
-const SHEET_LAYOUT_QUERY = "(max-width: 1023px)";
 const PHONE_QUERY = "(max-width: 639px)";
 function useMediaQuery(query) {
   const subscribe = useCallback((callback) => {
@@ -180,7 +181,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   const sheetRef = useRef(null);
   // The stop whose marker is lit up while Previous/Next is hovered
   const [previewPinId, setPreviewPinId] = useState(null);
-  const isSheetLayout = useMediaQuery(SHEET_LAYOUT_QUERY);
+  const isSheetLayout = !useMediaQuery(DOCKED_PANEL_QUERY);
   const isPhone = useMediaQuery(PHONE_QUERY);
   // Only one thing uses the right-hand panel at a time: a stop, the stops
   // list, or the admin editor. Opening one closes the others.

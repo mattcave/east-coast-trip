@@ -3,14 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { trapTabKey } from "./focusTrap";
+import { DOCKED_PANEL_QUERY } from "@/lib/layout";
 
 // The shell shared by the stop panel and the stops list. A bottom sheet on
 // phones and portrait tablets (capped at 85% of the visible height, or 55%
 // at first for a stop, see mobileSnap; scrolling inside, with the header
-// and footer fixed), and from 1024px (Tailwind's lg) a full-height panel
-// docked to the right that leaves the map undimmed beside it: 400px wide,
-// 520px from 1280px (xl). It used to dock from 640px, which split a
-// portrait iPad into half map, half panel. On a tablet the sheet is
+// and footer fixed), and on a wide landscape screen (1024px+, the dock:
+// variant) a full-height panel docked to the right that leaves the map
+// undimmed beside it: 400px wide, 520px from 1280px. It used to dock from
+// 640px, and then from 1024px, which still split a portrait 13-inch iPad
+// into half map, half panel. On a tablet the sheet is
 // centred at 600px rather than full width, so a 4:3 photo isn't taller
 // than the sheet. TripMap
 // measures it through panelRef to keep the selected stop clear of it.
@@ -32,10 +34,9 @@ import { trapTabKey } from "./focusTrap";
 const SNAP_DRAG_THRESHOLD = 40; // px of drag that counts as a swipe
 const DRAG_START = 6; // px of movement before a press becomes a drag
 
-// Below this width the panel is a bottom sheet; matches the lg: classes
-// below and TripMap's SHEET_LAYOUT_QUERY
+// Whether the panel is a bottom sheet right now (see DOCKED_PANEL_QUERY)
 function isMobileViewport() {
-  return !window.matchMedia("(min-width: 1024px)").matches;
+  return !window.matchMedia(DOCKED_PANEL_QUERY).matches;
 }
 
 export default function SidePanel({
@@ -120,7 +121,7 @@ export default function SidePanel({
           the panel; clicking it closes the panel via TripMap's map click
           handler. */}
       {!mobileSnap && (
-        <div className="fixed inset-0 z-20 bg-black/30 lg:hidden" onClick={onClose} aria-hidden="true" />
+        <div className="fixed inset-0 z-20 bg-black/30 dock:hidden" onClick={onClose} aria-hidden="true" />
       )}
 
       <div
@@ -134,12 +135,12 @@ export default function SidePanel({
         onKeyDown={(e) => {
           if (isMobileViewport()) trapTabKey(e, dialogRef.current);
         }}
-        className={`fixed bottom-0 left-0 right-0 z-30 flex ${mobileSnap && !expanded ? "max-h-[55dvh]" : "max-h-[85dvh]"} motion-safe:transition-[max-height] motion-safe:duration-200 flex-col bg-paper text-ink rounded-t-2xl shadow-2xl outline-none sm:left-1/2 sm:right-auto sm:w-[600px] sm:-translate-x-1/2 lg:left-auto lg:right-0 lg:translate-x-0 lg:top-0 lg:bottom-0 lg:left-auto lg:max-h-none lg:w-[400px] lg:rounded-none xl:w-[520px]`}
+        className={`fixed bottom-0 left-0 right-0 z-30 flex ${mobileSnap && !expanded ? "max-h-[55dvh]" : "max-h-[85dvh]"} motion-safe:transition-[max-height] motion-safe:duration-200 flex-col bg-paper text-ink rounded-t-2xl shadow-2xl outline-none sm:left-1/2 sm:right-auto sm:w-[600px] sm:-translate-x-1/2 dock:left-auto dock:right-0 dock:translate-x-0 dock:top-0 dock:bottom-0 dock:max-h-none dock:w-[400px] dock:rounded-none dock-wide:w-[520px]`}
       >
         {/* Header: always visible. With mobileSnap it's also the drag
             area, so touch gestures on it go to the drag, not the page. */}
         <div
-          className={`flex-shrink-0 border-b border-line ${mobileSnap ? "touch-none lg:touch-auto" : ""}`}
+          className={`flex-shrink-0 border-b border-line ${mobileSnap ? "touch-none dock:touch-auto" : ""}`}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={endDrag}
@@ -153,12 +154,12 @@ export default function SidePanel({
               onClick={() => setExpanded((x) => !x)}
               aria-expanded={expanded}
               aria-label={expanded ? "Show less of this stop" : "Show more of this stop"}
-              className="flex w-full justify-center pt-2.5 pb-1 lg:hidden cursor-grab"
+              className="flex w-full justify-center pt-2.5 pb-1 dock:hidden cursor-grab"
             >
               <span className="w-10 h-1 bg-line rounded-full" />
             </button>
           ) : (
-            <div className="flex justify-center pt-2.5 pb-1 lg:hidden">
+            <div className="flex justify-center pt-2.5 pb-1 dock:hidden">
               <div className="w-10 h-1 bg-line rounded-full" />
             </div>
           )}
