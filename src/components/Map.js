@@ -105,8 +105,13 @@ function MarkerPin({ icon, number, selected, hasPhotos }) {
   );
 }
 
-// A cluster: a paper circle with an ink ring and the count or stop range,
-// the same size as a stop so big clusters don't loom over their neighbours.
+// A cluster: a paper circle with an ink ring and the count or stop range.
+// Every cluster is the same size, so big clusters don't loom over their
+// neighbours, and every label is the same size: shrinking only the longer
+// ones made "9–10" look smaller than "5–7". 40px is the smallest circle
+// that holds the widest label ("38–41") at a readable 11px with a little
+// room inside the ring, a few px larger than a stop. The dash's side
+// bearings are pulled in, since an en dash carries a lot of space.
 // Light where stops are coloured, and with no badge, so it never reads as
 // a stop.
 function ClusterBadge({ text }) {
@@ -115,21 +120,26 @@ function ClusterBadge({ text }) {
       background: PAPER,
       color: INK,
       borderRadius: "50%",
-      width: 36,
-      height: 36,
+      width: 40,
+      height: 40,
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
       border: `2px solid ${INK}`,
       boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
-      // A range like "38–41" is wider than a count, so it gets a smaller size
       fontFamily: SANS,
-      fontSize: text.length > 3 ? 10 : 13,
+      fontSize: 11,
       fontWeight: 600,
-      letterSpacing: text.length > 3 ? "-0.02em" : undefined,
+      letterSpacing: "-0.02em",
       fontVariantNumeric: "tabular-nums",
     }}>
-      {text}
+      {text.includes("–") ? (
+        <>
+          {text.split("–")[0]}
+          <span style={{ margin: "0 -0.12em" }}>–</span>
+          {text.split("–")[1]}
+        </>
+      ) : text}
     </div>
   );
 }

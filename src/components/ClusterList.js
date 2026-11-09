@@ -7,7 +7,7 @@ import { PIN_ICONS } from "@/lib/icons";
 // without cutting off the word that tells them apart; names wrap to a
 // second line rather than truncating
 const WIDTH = 320;
-// Gap between the cluster's centre and the list: its 18px radius plus room
+// Gap between the cluster's centre and the list: its 20px radius plus room
 // for the ring
 const OFFSET = 30;
 const MARGIN = 8;
