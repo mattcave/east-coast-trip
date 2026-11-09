@@ -243,6 +243,13 @@ export function formatTripDayRange(trip) {
   return `${sd}–${ed} ${sm} ${sy}`;
 }
 
+// The tag on a trip that has no stops yet, in place of its facts line:
+// "Planned", plus the year once a start date is set ("Planned · 2027")
+export function plannedTripTag(trip) {
+  const start = parseDay(trip?.startDate);
+  return start ? `Planned · ${start.getUTCFullYear()}` : "Planned";
+}
+
 // "July 2026", "July – August 2026", or "December 2025 – January 2026".
 // Month-level on purpose: it's a summary line, not an itinerary.
 export function formatTripDates(trip) {

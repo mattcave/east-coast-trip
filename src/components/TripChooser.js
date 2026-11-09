@@ -3,12 +3,7 @@
 import Link from "next/link";
 import { X } from "lucide-react";
 import Sheet from "./Sheet";
-import { SITE_NAME, formatTripDayRange, sortTrips, tripCoverImage } from "@/lib/trips";
-
-// The small tag a trip without pins shows in place of its facts line
-function plannedTag() {
-  return "Planned";
-}
+import { SITE_NAME, formatTripDayRange, plannedTripTag, sortTrips, tripCoverImage } from "@/lib/trips";
 
 // Lists every trip as a card. Shown on each visit to the site root, and from
 // the trip switcher's "All trips" item or a trip summary's "other trips" link.
@@ -18,7 +13,8 @@ function plannedTag() {
 //
 // A trip with stops gets its cover photo across the top of the card and a
 // facts line ("14–31 Aug 2026 · 45 stops"). A trip without any yet has
-// nothing to show, so it's a text-only card with a "Planned" tag.
+// nothing to show, so it's a text-only card with a "Planned" tag (with the
+// year once the trip has a start date).
 export default function TripChooser({ trips, pinsByTrip, currentTripId, sheetRef, onPick, onClose }) {
   return (
     <Sheet onClose={onClose} labelledBy="trip-chooser-title" sheetRef={sheetRef} widthClass="sm:w-[520px]">
@@ -68,7 +64,7 @@ export default function TripChooser({ trips, pinsByTrip, currentTripId, sheetRef
                       <span className="mt-1 block text-xs font-medium text-muted">{facts}</span>
                     ) : (
                       <span className="mt-1.5 inline-block rounded-full bg-line px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-ink">
-                        {plannedTag(trip)}
+                        {plannedTripTag(trip)}
                       </span>
                     )}
                     {trip.description && (

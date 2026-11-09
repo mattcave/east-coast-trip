@@ -9,6 +9,7 @@ import {
   overviewHomeView,
   formatTripDates,
   formatTripDayRange,
+  plannedTripTag,
   tripCoverImage,
   flyToView,
   easeToPoint,
@@ -171,6 +172,18 @@ describe("formatTripDayRange", () => {
     expect(formatTripDayRange({})).toBe(null);
     expect(formatTripDayRange(null)).toBe(null);
     expect(formatTripDayRange({ startDate: "soon" })).toBe(null);
+  });
+});
+
+describe("plannedTripTag", () => {
+  it("adds the year once a start date is set", () => {
+    expect(plannedTripTag({ startDate: "2027-07-01" })).toBe("Planned · 2027");
+  });
+
+  it("is just Planned without a start date", () => {
+    expect(plannedTripTag({})).toBe("Planned");
+    expect(plannedTripTag({ startDate: null, endDate: "2027-08-01" })).toBe("Planned");
+    expect(plannedTripTag(null)).toBe("Planned");
   });
 });
 

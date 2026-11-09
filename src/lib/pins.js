@@ -98,23 +98,6 @@ export function matchesStopQuery(pin, query) {
   return words.every((w) => label.includes(w));
 }
 
-// A pin shows a Wikipedia summary unless it's switched off: `null` looks up
-// the nearest article automatically, a URL shows that article
-export function pinLinksToWikipedia(pin) {
-  return Boolean(pin) && pin.wikipedia !== "none";
-}
-
-// Which of the trip summary's claims are true for these pins, worked out
-// from the content so the summary can't overpromise. The photo line needs at
-// least half the stops to have photos; the Wikipedia line needs one stop.
-export function tripSummaryFacts(pins = []) {
-  const withPhotos = pins.filter((p) => pinImages(p).length > 0).length;
-  return {
-    photos: pins.length > 0 && withPhotos * 2 >= pins.length,
-    wikipedia: pins.some(pinLinksToWikipedia),
-  };
-}
-
 // Links to a single stop look like /trips/<trip>?stop=<pinId>
 export const STOP_PARAM = "stop";
 

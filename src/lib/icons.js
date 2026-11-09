@@ -19,5 +19,5 @@ export const PIN_ICONS = {
   activity:   { icon: Zap,       label: "Activity",   color: "#0e8a87" }, // teal — playgrounds, boardwalks, active family fun
   wildlife:   { icon: Bird,      label: "Wildlife",   color: "#5b9a2e" }, // leaf, as Nature
   attraction: { icon: Star,      label: "Attraction", color: "#d6336c" }, // raspberry — novelty sights, statues, ships, viewpoints
-  default:    { icon: MapPin,    label: "Pin",        color: "#64748b" }, // slate
+  default:    { icon: MapPin,    label: "Other",      color: "#64748b" }, // slate
 };

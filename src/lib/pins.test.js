@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sortPins, nextOrder, applyOrder, moveItem, sanitizePinDate, formatPinDate, pinImages, matchesStopQuery, pinLinksToWikipedia, tripSummaryFacts, stopIdFromSearch, searchWithStop, clusterLabel } from "./pins";
+import { sortPins, nextOrder, applyOrder, moveItem, sanitizePinDate, formatPinDate, pinImages, matchesStopQuery, stopIdFromSearch, searchWithStop, clusterLabel } from "./pins";
 
 const ids = (pins) => pins.map((p) => p.id);
 
@@ -152,40 +152,6 @@ describe("matchesStopQuery", () => {
   it("needs every word, in any order", () => {
     expect(matchesStopQuery(pin, "harbour chet")).toBe(true);
     expect(matchesStopQuery(pin, "harbour beach")).toBe(false);
-  });
-});
-
-describe("pinLinksToWikipedia", () => {
-  it("is true for auto lookup (null) and a specific article", () => {
-    expect(pinLinksToWikipedia({ wikipedia: null })).toBe(true);
-    expect(pinLinksToWikipedia({})).toBe(true);
-    expect(pinLinksToWikipedia({ wikipedia: "https://en.wikipedia.org/wiki/Halifax" })).toBe(true);
-  });
-
-  it("is false when switched off", () => {
-    expect(pinLinksToWikipedia({ wikipedia: "none" })).toBe(false);
-    expect(pinLinksToWikipedia(null)).toBe(false);
-  });
-});
-
-describe("tripSummaryFacts", () => {
-  const photo = { images: ["/uploads/a.jpg"], wikipedia: "none" };
-  const bare = { images: [], wikipedia: "none" };
-
-  it("shows the photo line when at least half the stops have photos", () => {
-    expect(tripSummaryFacts([photo, bare]).photos).toBe(true);
-    expect(tripSummaryFacts([photo, bare, bare]).photos).toBe(false);
-    expect(tripSummaryFacts([{ image: "/uploads/b.jpg" }]).photos).toBe(true);
-  });
-
-  it("shows neither line for a trip with no pins", () => {
-    expect(tripSummaryFacts([])).toEqual({ photos: false, wikipedia: false });
-    expect(tripSummaryFacts()).toEqual({ photos: false, wikipedia: false });
-  });
-
-  it("shows the Wikipedia line when any stop links to Wikipedia", () => {
-    expect(tripSummaryFacts([bare, bare]).wikipedia).toBe(false);
-    expect(tripSummaryFacts([bare, { wikipedia: null }]).wikipedia).toBe(true);
   });
 });
 
