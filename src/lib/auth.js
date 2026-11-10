@@ -28,6 +28,31 @@ export async function isValidToken(token) {
   return token === await generateToken();
 }
 
+// Compares in time that depends only on the length, so a caller can't find
+// the token a character at a time by timing failed requests. (Web Crypto has
+// no timingSafeEqual, and Node's crypto isn't available on the Edge Runtime.)
+function safeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+// Checks an `Authorization: Bearer <token>` header against API_TOKEN, for
+// agents and scripts that can't do the cookie login. Unlike the other env
+// vars this one is optional: when it's unset, bearer auth is simply off.
+// Tokens shorter than 32 characters are refused outright so a weak value
+// can't be configured by accident.
+export const MIN_API_TOKEN_LENGTH = 32;
+
+export function isValidApiToken(authHeader) {
+  const expected = process.env.API_TOKEN;
+  if (!expected || expected.length < MIN_API_TOKEN_LENGTH) return false;
+  const match = /^Bearer\s+(\S+)\s*$/i.exec(authHeader ?? "");
+  if (!match) return false;
+  return safeEqual(match[1], expected);
+}
+
 export function checkPassword(password) {
   if (!process.env.ADMIN_PASSWORD) throw new Error("ADMIN_PASSWORD env var is not set");
   if (!password) return false;

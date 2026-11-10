@@ -45,6 +45,8 @@ STADIA_API_KEY=your_stadia_api_key
 MAPBOX_TOKEN=your_mapbox_token
 ADMIN_PASSWORD=your_admin_password
 SESSION_SECRET=a_long_random_string
+# Optional — enables agent access, see "Agent access" below
+API_TOKEN=at_least_32_random_characters
 ```
 
 ```bash
@@ -73,6 +75,18 @@ npm run fixtures:pull -- --force  # re-download every photo
 It only reads the public GET endpoints, so no login is needed. Set `PROD_URL` to pull from a different host. Without any data the app still starts, with the default trip and no pins.
 
 Older installs kept everything in a single `data/pins.json`. On first request the app moves that file to `data/pins/east-coast-2026.json` and creates `trips.json` around it, so no manual migration step is needed.
+
+### Agent access
+
+Every write endpoint under `/api` also accepts `Authorization: Bearer <API_TOKEN>`, so an agent or script can add and edit stops without the admin password. Reads are public and need no token. Bearer auth is off unless `API_TOKEN` is set, and a value shorter than 32 characters is refused. Generate one with:
+
+```bash
+openssl rand -hex 32
+```
+
+The token only covers the API, not the `/admin` pages. To revoke it, change or remove `API_TOKEN` and restart.
+
+[skills/road-trip/SKILL.md](skills/road-trip/SKILL.md) teaches an agent (Hermes, Claude Code, or anything that reads `SKILL.md` skills) how to use the API: copy that folder into the agent's skills directory and give the agent `TRIP_API_URL` and `TRIP_API_TOKEN`.
 
 ### Tests
 

@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { generateToken, isValidToken, checkPassword } from "./auth.js";
+import { generateToken, isValidToken, isValidApiToken, checkPassword } from "./auth.js";
+
+const API_TOKEN = "a".repeat(40);
 
 beforeEach(() => {
   vi.stubEnv("SESSION_SECRET", "test-secret");
@@ -72,5 +74,46 @@ describe("checkPassword", () => {
 
   it("returns false for an empty string", () => {
     expect(checkPassword("")).toBe(false);
+  });
+});
+
+describe("isValidApiToken", () => {
+  beforeEach(() => {
+    vi.stubEnv("API_TOKEN", API_TOKEN);
+  });
+
+  it("accepts the configured token as a Bearer header", () => {
+    expect(isValidApiToken(`Bearer ${API_TOKEN}`)).toBe(true);
+  });
+
+  it("accepts a lowercase scheme and trailing whitespace", () => {
+    expect(isValidApiToken(`bearer ${API_TOKEN} `)).toBe(true);
+  });
+
+  it("rejects a wrong token of the same length", () => {
+    expect(isValidApiToken(`Bearer ${"b".repeat(40)}`)).toBe(false);
+  });
+
+  it("rejects a prefix of the token", () => {
+    expect(isValidApiToken(`Bearer ${API_TOKEN.slice(0, -1)}`)).toBe(false);
+  });
+
+  it("rejects the token without the Bearer scheme", () => {
+    expect(isValidApiToken(API_TOKEN)).toBe(false);
+  });
+
+  it.each([null, undefined, ""])("rejects a missing header (%s)", (header) => {
+    expect(isValidApiToken(header)).toBe(false);
+  });
+
+  it("is off when API_TOKEN is unset, even for an empty bearer", () => {
+    vi.stubEnv("API_TOKEN", "");
+    expect(isValidApiToken("Bearer ")).toBe(false);
+    expect(isValidApiToken(`Bearer ${API_TOKEN}`)).toBe(false);
+  });
+
+  it("refuses a configured token shorter than 32 characters", () => {
+    vi.stubEnv("API_TOKEN", "short-token");
+    expect(isValidApiToken("Bearer short-token")).toBe(false);
   });
 });

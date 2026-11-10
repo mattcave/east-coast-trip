@@ -10,6 +10,8 @@ services:
       - MAPBOX_TOKEN=${MAPBOX_TOKEN}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
       - SESSION_SECRET=${SESSION_SECRET}
+      # Optional: lets agents write via `Authorization: Bearer`. Leave unset to disable.
+      - API_TOKEN=${API_TOKEN:-}
     volumes:
       # Persist trip and pin data and uploaded images outside the container
       - ./data:/app/data
