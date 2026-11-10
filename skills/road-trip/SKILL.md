@@ -112,6 +112,33 @@ There is no single "add photo" call. Upload each photo, then set the stop's whol
 
 If a photo carries GPS data and no stop was named, you can read its location before uploading (for example with `exiftool -n -GPSLongitude -GPSLatitude`) to find the nearest stop, or to suggest a new one.
 
+### Rotate or edit a photo
+
+The API has no rotate or edit call. Download the photo, change it, upload the result as a new photo, and swap the URL on the stop.
+
+1. `GET` the stops and find the photo's URL in the stop's `images`.
+2. Download it. Photos are public, so no token is needed:
+   ```bash
+   curl -sS -o in.webp "$TRIP_API_URL/uploads/<id>.webp"
+   ```
+3. Edit it locally. For example, to rotate 90° clockwise (use `-90` or `270` for counter-clockwise, `180` for upside down):
+   ```bash
+   magick in.webp -rotate 90 -quality 95 out.webp
+   ```
+   Look at the photo before and after rotating, to be sure the result is upright. People's heads should point up.
+4. Upload it, stating the type explicitly. curl sends `.webp` files as `application/octet-stream`, and the server rejects that with a `400`:
+   ```bash
+   curl -sS -X POST "$TRIP_API_URL/api/upload" \
+     -H "Authorization: Bearer $TRIP_API_TOKEN" -F "file=@out.webp;type=image/webp"
+   ```
+5. `GET` the stops again. `PATCH` the stop's `images` with the new URL **in the old URL's position**, so the order and cover photo don't change. Leave every other URL as it is.
+
+Each upload re-compresses the photo, so it loses a little quality every time. Make every change in one pass rather than in repeated rounds. If the user still has the original photo, editing and uploading that one is better than editing the downloaded copy.
+
+The old file stays on the server, unreferenced. The API cannot delete uploads, so you don't need to try.
+
+Photos uploaded before 16 September 2026 were not turned upright from the phone's rotation tag, so some of them appear sideways. Photos uploaded since then are turned upright automatically.
+
 ### Move a stop in the order
 
 `PUT .../pins/order` with every stop id in the new order. Build the list from a fresh `GET` sorted by `order`, move the one id, then send the whole list.
