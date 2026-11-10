@@ -41,4 +41,8 @@ describe("filterPinsByCategory", () => {
   it("keeps the open stop even when its category is filtered out", () => {
     expect(filterPinsByCategory(pins, new Set(["food"]), "b").map((p) => p.id)).toEqual(["a", "b", "e"]);
   });
+
+  it("keeps a list of stops, such as the open stop's neighbours", () => {
+    expect(filterPinsByCategory(pins, new Set(["food"]), ["b", "d", null]).map((p) => p.id)).toEqual(["a", "b", "d", "e"]);
+  });
 });

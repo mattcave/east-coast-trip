@@ -10,7 +10,9 @@ import {
   formatTripDates,
   formatTripDayRange,
   plannedTripTag,
+  tripDayCount,
   tripCoverImage,
+  fitToStops,
   flyToView,
   easeToPoint,
   setMapInset,
@@ -187,6 +189,20 @@ describe("plannedTripTag", () => {
   });
 });
 
+describe("tripDayCount", () => {
+  it("counts both the first and the last day", () => {
+    expect(tripDayCount({ startDate: "2026-08-14", endDate: "2026-08-31" })).toBe(18);
+    expect(tripDayCount({ startDate: "2026-08-14", endDate: "2026-08-14" })).toBe(1);
+    expect(tripDayCount({ startDate: "2025-12-28", endDate: "2026-01-03" })).toBe(7);
+  });
+
+  it("is null without both dates, or with the end before the start", () => {
+    expect(tripDayCount({ startDate: "2026-08-14" })).toBeNull();
+    expect(tripDayCount({})).toBeNull();
+    expect(tripDayCount({ startDate: "2026-08-14", endDate: "2026-08-01" })).toBeNull();
+  });
+});
+
 describe("tripCoverImage", () => {
   it("returns the first photo across pins, including legacy single images", () => {
     expect(tripCoverImage([{ images: [] }, { image: "" }, { image: "/uploads/a.webp" }, { images: ["/uploads/b.webp"] }]))
@@ -296,5 +312,40 @@ describe("camera helpers", () => {
     const map = fakeMap({ width: 1000, height: 600 });
     setMapInset(map, { right: 400 });
     expect(map.calls[0][1].center).toEqual({ x: 300, y: 300 });
+  });
+
+  it("fits the open stop and its neighbours left of a docked panel, capped at zoom 12", () => {
+    stubReducedMotion(false);
+    const map = fakeMap({ width: 1440, height: 900 });
+    fitToStops(map, [[-64, 46], [-65, 45], [-63, 47]], { inset: { right: 520 } });
+    const [name, bounds, options] = map.calls[0];
+    expect(name).toBe("fitBounds");
+    expect(bounds).toEqual([[-65, 45], [-63, 47]]);
+    expect(options.maxZoom).toBe(12);
+    expect(options.padding.right).toBeGreaterThan(520);
+    expect(options.padding.top).toBeGreaterThan(0);
+  });
+
+  it("fits into the strip above a bottom sheet", () => {
+    stubReducedMotion(false);
+    const map = fakeMap({ width: 390, height: 844 });
+    fitToStops(map, [[-64, 46], [-65, 45]], { inset: { top: 66, bottom: 464 } });
+    const { padding } = map.calls[0][2];
+    expect(padding.top).toBeGreaterThan(66);
+    expect(padding.bottom).toBeGreaterThan(464);
+  });
+
+  it("centres the open stop instead when the sheet leaves no room for a fit", () => {
+    stubReducedMotion(false);
+    const map = fakeMap({ width: 375, height: 667 });
+    fitToStops(map, [[-64, 46], [-65, 45]], { inset: { top: 66, bottom: 560 } });
+    expect(map.calls[0]).toEqual(["easeTo", { center: [-64, 46], padding: { top: 66, right: 0, bottom: 560, left: 0 } }]);
+  });
+
+  it("does nothing without a map or points", () => {
+    expect(() => fitToStops(null, [[0, 0]])).not.toThrow();
+    const map = fakeMap();
+    fitToStops(map, []);
+    expect(map.calls).toEqual([]);
   });
 });

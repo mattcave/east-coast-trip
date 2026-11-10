@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, ChevronLeft, ChevronRight, List, Link2, Check } from "lucide-react";
+import { ExternalLink, ChevronLeft, ChevronRight, List, Link2, Check, Flag } from "lucide-react";
 import PhotoViewer from "./PhotoViewer";
 import SidePanel from "./SidePanel";
-import { pinImages, formatPinDate } from "@/lib/pins";
+import { pinImages, formatPinDate, formatPostmarkDate } from "@/lib/pins";
 import { pinCategory } from "@/lib/categories";
 import { PIN_ICONS } from "@/lib/icons";
 import { prefersReducedMotion } from "@/lib/trips";
@@ -120,12 +120,14 @@ function PhotoCarousel({ images, alt, onOpen, scrollRequest }) {
           ))}
         </div>
 
+        {/* On a touch screen the arrows sit a little further in, so their
+            44px tap box (touch-hit) isn't cut off by the screen edge */}
         {index > 0 && (
           <button
             type="button"
             onClick={() => scrollToIndex(index - 1)}
             aria-label="Previous photo"
-            className="press absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1"
+            className="press touch-hit absolute left-2 pointer-coarse:left-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1"
           >
             <ChevronLeft size={18} />
           </button>
@@ -135,7 +137,7 @@ function PhotoCarousel({ images, alt, onOpen, scrollRequest }) {
             type="button"
             onClick={() => scrollToIndex(index + 1)}
             aria-label="Next photo"
-            className="press absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1"
+            className="press touch-hit absolute right-2 pointer-coarse:right-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1"
           >
             <ChevronRight size={18} />
           </button>
@@ -166,6 +168,54 @@ function PhotoCarousel({ images, alt, onOpen, scrollRequest }) {
             <img src={src} alt="" className="h-full w-full object-cover" />
           </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// The perforated edge of the postcard's stamp: a row of half-circle bites
+// out of every side. Two mask layers: a solid block over the middle
+// (content-box, inside the 4px padding), and a grid of 5px holes centred on
+// the edges (8px apart, shifted half a step so they straddle the border).
+// The holes inside the stamp fall under the solid block, so only the
+// edges are bitten.
+const STAMP_MASK = "linear-gradient(#000 0 0) content-box no-repeat, radial-gradient(circle, transparent 2.5px, #000 3px) -4px -4px / 8px 8px";
+
+// Stands in for the photo frame on a stop without photos, so the panel
+// isn't a title, a paragraph and blank paper. A postcard: a paper card
+// tinted with the stop's category colour, a stamp with the category icon,
+// a postmark with the province or state and the date (or the stop number
+// when there's no date), and the stop's name. Purely decorative: the title
+// and context line above already say all of this to screen readers.
+function Postcard({ pin, stopNumber }) {
+  const { icon: Icon, color } = PIN_ICONS[pinCategory(pin)];
+  const postmarkDate = formatPostmarkDate(pin.date) ?? (stopNumber ? `Stop ${stopNumber}` : null);
+  const region = typeof pin.region === "string" && pin.region.trim() ? pin.region.trim() : null;
+  return (
+    <div className="px-5 pt-5" aria-hidden="true">
+      <div
+        className="relative aspect-[2/1] w-full overflow-hidden rounded-sm border border-line"
+        style={{ background: `color-mix(in srgb, ${color} 10%, var(--color-paper))` }}
+      >
+        <div className="absolute right-4 top-4 flex items-start gap-2.5">
+          {(region || postmarkDate) && (
+            <div className="mt-1 flex h-16 w-16 flex-col items-center justify-center rounded-full border-[1.5px] border-ink/60 px-1.5 text-center font-sans font-semibold uppercase leading-[1.15] tracking-[0.04em] text-ink/70">
+              {region && <span className="line-clamp-3 text-[8px]">{region}</span>}
+              {postmarkDate && <span className={`text-[9px] ${region ? "mt-0.5" : ""}`}>{postmarkDate}</span>}
+            </div>
+          )}
+          {/* The colour fills the padding too: that 4px band is where the
+              mask bites the perforations out */}
+          <div
+            className="flex h-[72px] w-[72px] flex-shrink-0 items-center justify-center p-1"
+            style={{ background: color, mask: STAMP_MASK, WebkitMask: STAMP_MASK }}
+          >
+            <Icon size={32} color="white" strokeWidth={1.75} />
+          </div>
+        </div>
+        <p className="absolute bottom-4 left-5 right-5 line-clamp-2 font-serif text-[22px] leading-[1.15] text-ink sm:text-[28px]">
+          {pin.label}
+        </p>
       </div>
     </div>
   );
@@ -285,7 +335,7 @@ function CopyLinkButton({ href }) {
 
 // `onPreview(id | null)` lights up the target stop's marker while the
 // button is hovered or focused, so the visitor sees where they're going
-function StepButton({ direction, target, onClick, onPreview }) {
+export function StepButton({ direction, target, onClick, onPreview }) {
   const isPrev = direction === "prev";
   const Icon = isPrev ? ChevronLeft : ChevronRight;
   return (
@@ -312,12 +362,29 @@ function StepButton({ direction, target, onClick, onPreview }) {
   );
 }
 
+// Takes the Next button's place on the last stop, and opens the finish card
+function FinishButton({ onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="press flex min-w-0 flex-1 items-center justify-end gap-1 rounded-lg px-2 py-2 text-sm font-medium text-accent hover:bg-line/60 hover:text-accent-hover"
+    >
+      <span className="min-w-0 text-right">
+        <span className="block text-[11px] font-normal text-muted">Next</span>
+        <span className="block truncate">The end of the trip</span>
+      </span>
+      <Flag size={16} className="ml-0.5 flex-shrink-0" aria-hidden="true" />
+    </button>
+  );
+}
+
 // One stop's details, in the shared SidePanel shell (bottom sheet on
 // mobile, docked right on desktop). ArrowLeft/ArrowRight step between stops
 // while it's open (when `keyboardEnabled`); SidePanel handles Escape.
 export default function PinPopup({
   pin, stopNumber, stopCount, prev, next, onPrev, onNext, onClose, onEdit, onBackToList,
-  shareHref, getZoom, panelRef, keyboardEnabled = true, onPreviewStop,
+  shareHref, getZoom, panelRef, keyboardEnabled = true, onPreviewStop, onFinish = null,
 }) {
   const [viewer, setViewer] = useState(null); // { index } while the full-screen viewer is open
   const [scrollRequest, setScrollRequest] = useState(null);
@@ -354,10 +421,11 @@ export default function PinPopup({
       e.stopPropagation();
       if (e.key === "ArrowLeft" && prev) onPrev();
       if (e.key === "ArrowRight" && next) onNext();
+      else if (e.key === "ArrowRight" && onFinish) onFinish();
     };
     window.addEventListener("keydown", onKeyDown, { capture: true });
     return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
-  }, [keyboardEnabled, viewer, prev, next, onPrev, onNext]);
+  }, [keyboardEnabled, viewer, prev, next, onPrev, onNext, onFinish]);
 
   const closeViewer = (index) => {
     setViewer(null);
@@ -365,11 +433,14 @@ export default function PinPopup({
   };
 
   // Stop stepping, always visible. The bottom padding keeps it clear of the
-  // iPhone home indicator.
-  const footer = (prev || next) ? (
+  // iPhone home indicator. On the last stop, Next becomes "The end of the
+  // trip", which opens the finish card.
+  const footer = (prev || next || onFinish) ? (
     <div className="flex flex-shrink-0 items-stretch gap-2 border-t border-line px-2 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       <StepButton direction="prev" target={prev} onClick={onPrev} onPreview={onPreviewStop} />
-      <StepButton direction="next" target={next} onClick={onNext} onPreview={onPreviewStop} />
+      {!next && onFinish
+        ? <FinishButton onClick={onFinish} />
+        : <StepButton direction="next" target={next} onClick={onNext} onPreview={onPreviewStop} />}
     </div>
   ) : null;
 
@@ -396,13 +467,17 @@ export default function PinPopup({
         mobileSnap
         snapKey={pin.id}
       >
-        <PhotoCarousel
-          key={pin.id}
-          images={images}
-          alt={pin.label}
-          onOpen={(index) => setViewer({ index })}
-          scrollRequest={scrollRequest}
-        />
+        {images.length > 0 ? (
+          <PhotoCarousel
+            key={pin.id}
+            images={images}
+            alt={pin.label}
+            onOpen={(index) => setViewer({ index })}
+            scrollRequest={scrollRequest}
+          />
+        ) : (
+          <Postcard pin={pin} stopNumber={stopNumber} />
+        )}
 
         <div className="p-4 sm:p-5">
           {pin.description && (

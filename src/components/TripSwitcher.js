@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Check, LayoutGrid } from "lucide-react";
 import { formatTripDates, sortTrips } from "@/lib/trips";
+import MotorhomeIcon from "./MotorhomeIcon";
 
 // Pill showing the current trip, with a dropdown for jumping straight to
 // another one. Positioned by TripMap's top bar; the dropdown floats over
@@ -33,8 +34,9 @@ export default function TripSwitcher({ trips, currentTripId, onShowAllTrips }) {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="press flex max-w-full items-center gap-1.5 bg-paper hover:bg-line text-ink text-sm font-medium pl-3 pr-2.5 py-2 rounded-lg shadow-md border border-line"
+        className="press touch-hit relative flex max-w-full items-center gap-1.5 bg-paper hover:bg-line text-ink text-sm font-medium pl-2.5 pr-2.5 py-2 rounded-lg shadow-md border border-line"
       >
+        <MotorhomeIcon size={18} className="flex-shrink-0 text-accent" />
         <span className="truncate">{current?.name ?? "Choose a trip"}</span>
         <ChevronDown size={16} className={`flex-shrink-0 text-muted motion-safe:transition-transform ${open ? "rotate-180" : ""}`} />
       </button>

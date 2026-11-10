@@ -112,3 +112,24 @@ describe("POST stop order and date", () => {
     expect(bad.status).toBe(400);
   });
 });
+
+describe("POST /api/trips/[tripId]/pins region", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("saves the region Mapbox finds for the new pin", async () => {
+    vi.stubEnv("MAPBOX_TOKEN", "test-key");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({ ok: true, json: async () => ({ features: [{ text: "Nova Scotia" }] }) });
+    const response = await POST(postRequest({ label: "Lunenburg", lngLat: [-64.3, 44.4], region: "Made up" }), makeParams(TEST_TRIP.id));
+    expect(response.status).toBe(201);
+    expect((await response.json()).region).toBe("Nova Scotia");
+  });
+
+  it("saves the pin without a region when the lookup fails", async () => {
+    vi.stubEnv("MAPBOX_TOKEN", "test-key");
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
+    const response = await POST(postRequest({ label: "Lunenburg", lngLat: [-64.3, 44.4] }), makeParams(TEST_TRIP.id));
+    expect(response.status).toBe(201);
+    expect("region" in (await response.json())).toBe(false);
+  });
+});
+

@@ -132,3 +132,62 @@ export function clusterLabel({ count, firstStop, lastStop }) {
   }
   return { text: String(count), ariaLabel: `Cluster of ${count} stops` };
 }
+
+// UTC and a fixed locale, as in formatPinDate. en-GB gives "Sept" for
+// September, so months are cut to three letters.
+const SHORT_MONTH = new Intl.DateTimeFormat("en-GB", { month: "short", timeZone: "UTC" });
+const SHORT_WEEKDAY = new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "UTC" });
+const DAY_MS = 86400000;
+
+function parsePinDay(date) {
+  if (typeof date !== "string" || !DATE_RE.test(date)) return null;
+  const d = new Date(`${date}T00:00:00Z`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+// "14 Aug 2026", for a stop's postcard postmark. Null without a valid date.
+export function formatPostmarkDate(date) {
+  const d = parsePinDay(date);
+  return d ? `${d.getUTCDate()} ${SHORT_MONTH.format(d).slice(0, 3)} ${d.getUTCFullYear()}` : null;
+}
+
+// The provinces and states a trip passes through, in trip order, each
+// listed once (the first time the trip reaches it). Stops without a
+// `region` are skipped. `stops` must already be in trip order.
+export function regionsInOrder(stops = []) {
+  const seen = new Set();
+  for (const stop of stops) {
+    const region = typeof stop?.region === "string" ? stop.region.trim() : "";
+    if (region) seen.add(region);
+  }
+  return [...seen];
+}
+
+// The stops list's day headings. Only when every stop has a date: a
+// partly dated trip would leave the undated stops under no heading, so it
+// keeps the flat list instead (returns null). Each run of consecutive stops
+// on the same day gets one group, in trip order: { date, label, stops },
+// labelled "Day 3 · Sun 16 Aug". Day 1 is the trip's startDate, or the
+// earliest stop date when the trip has none. A stop dated before the
+// start would come out as day 0 or less, so that group drops the day
+// number ("Sat 13 Aug").
+export function groupStopsByDay(stops = [], trip = null) {
+  if (stops.length === 0) return null;
+  const days = stops.map((s) => parsePinDay(s?.date));
+  if (days.some((d) => !d)) return null;
+  const start = parsePinDay(trip?.startDate) ?? new Date(Math.min(...days.map((d) => d.getTime())));
+
+  const groups = [];
+  stops.forEach((stop, i) => {
+    const last = groups[groups.length - 1];
+    if (last && last.date === stop.date) {
+      last.stops.push(stop);
+      return;
+    }
+    const d = days[i];
+    const dayNumber = Math.round((d - start) / DAY_MS) + 1;
+    const when = `${SHORT_WEEKDAY.format(d)} ${d.getUTCDate()} ${SHORT_MONTH.format(d).slice(0, 3)}`;
+    groups.push({ date: stop.date, label: dayNumber >= 1 ? `Day ${dayNumber} · ${when}` : when, stops: [stop] });
+  });
+  return groups;
+}

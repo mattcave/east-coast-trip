@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sortPins, nextOrder, applyOrder, moveItem, sanitizePinDate, formatPinDate, pinImages, matchesStopQuery, stopIdFromSearch, searchWithStop, clusterLabel } from "./pins";
+import { sortPins, nextOrder, applyOrder, moveItem, sanitizePinDate, formatPinDate, pinImages, matchesStopQuery, stopIdFromSearch, searchWithStop, clusterLabel, formatPostmarkDate, regionsInOrder, groupStopsByDay } from "./pins";
 
 const ids = (pins) => pins.map((p) => p.id);
 
@@ -200,5 +200,61 @@ describe("clusterLabel", () => {
   it("keeps the count when stop numbers are unknown", () => {
     expect(clusterLabel({ count: 4 })).toEqual({ text: "4", ariaLabel: "Cluster of 4 stops" });
     expect(clusterLabel({ count: 4, firstStop: Infinity, lastStop: -Infinity }).text).toBe("4");
+  });
+});
+
+describe("formatPostmarkDate", () => {
+  it("formats a date as day, short month and year", () => {
+    expect(formatPostmarkDate("2026-08-14")).toBe("14 Aug 2026");
+    expect(formatPostmarkDate("2026-09-01")).toBe("1 Sep 2026");
+  });
+
+  it.each([null, undefined, "", "2026-8-14", "2026-02-30x", 5])("returns null for %j", (value) => {
+    expect(formatPostmarkDate(value)).toBeNull();
+  });
+});
+
+describe("regionsInOrder", () => {
+  it("lists each region once, the first time the trip reaches it", () => {
+    const stops = [
+      { region: "Ontario" }, { region: "Quebec" }, { region: "Ontario" },
+      {}, { region: " New Brunswick " }, { region: "Quebec" }, { region: "" },
+    ];
+    expect(regionsInOrder(stops)).toEqual(["Ontario", "Quebec", "New Brunswick"]);
+  });
+
+  it("is empty when no stop has a region", () => {
+    expect(regionsInOrder([{}, { region: null }])).toEqual([]);
+    expect(regionsInOrder()).toEqual([]);
+  });
+});
+
+describe("groupStopsByDay", () => {
+  const stop = (id, date) => ({ id, date });
+
+  it("returns null unless every stop has a date", () => {
+    expect(groupStopsByDay([stop("a", "2026-08-14"), stop("b", null)])).toBeNull();
+    expect(groupStopsByDay([])).toBeNull();
+  });
+
+  it("groups consecutive stops on the same day, counting from the trip start", () => {
+    const groups = groupStopsByDay(
+      [stop("a", "2026-08-14"), stop("b", "2026-08-14"), stop("c", "2026-08-16")],
+      { startDate: "2026-08-14" }
+    );
+    expect(groups.map((g) => [g.label, g.stops.map((s) => s.id)])).toEqual([
+      ["Day 1 · Fri 14 Aug", ["a", "b"]],
+      ["Day 3 · Sun 16 Aug", ["c"]],
+    ]);
+  });
+
+  it("counts from the earliest stop date when the trip has no start date", () => {
+    const groups = groupStopsByDay([stop("a", "2026-08-15"), stop("b", "2026-08-17")], {});
+    expect(groups.map((g) => g.label)).toEqual(["Day 1 · Sat 15 Aug", "Day 3 · Mon 17 Aug"]);
+  });
+
+  it("leaves the day number off a stop dated before the trip starts", () => {
+    const groups = groupStopsByDay([stop("a", "2026-08-13")], { startDate: "2026-08-14" });
+    expect(groups[0].label).toBe("Thu 13 Aug");
   });
 });

@@ -174,7 +174,7 @@ export default function SidePanel({
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="press flex-shrink-0 rounded text-muted hover:text-ink p-0.5"
+              className="press touch-hit relative flex-shrink-0 rounded text-muted hover:text-ink p-0.5"
             >
               <X size={20} />
             </button>

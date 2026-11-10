@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { X } from "lucide-react";
 import Sheet from "./Sheet";
+import MotorhomeIcon from "./MotorhomeIcon";
 import { SITE_NAME, formatTripDayRange, plannedTripTag, sortTrips, tripCoverImage } from "@/lib/trips";
 
 // Lists every trip as a card. Shown on each visit to the site root, and from
@@ -20,7 +21,10 @@ export default function TripChooser({ trips, pinsByTrip, currentTripId, sheetRef
     <Sheet onClose={onClose} labelledBy="trip-chooser-title" sheetRef={sheetRef} widthClass="sm:w-[520px]">
       <div className="p-5 pt-6 pb-8 sm:p-6">
         <div className="flex items-start justify-between gap-3">
-          <h2 id="trip-chooser-title" className="font-serif font-semibold text-ink text-[26px] sm:text-[30px] leading-[1.15]">{SITE_NAME}</h2>
+          <h2 id="trip-chooser-title" className="flex items-center gap-2.5 font-serif font-semibold text-ink text-[26px] sm:text-[30px] leading-[1.15]">
+            <MotorhomeIcon size={30} className="flex-shrink-0 text-accent" />
+            {SITE_NAME}
+          </h2>
           <button
             onClick={onClose}
             aria-label="Close"

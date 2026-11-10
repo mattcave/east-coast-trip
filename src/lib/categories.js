@@ -14,9 +14,12 @@ export function tripCategories(pins = []) {
 }
 
 // Pins whose category is selected. An empty selection means no filter.
-// keepId is the open stop, kept even when its category is filtered out so
-// the panel never describes a marker that isn't on the map.
-export function filterPinsByCategory(pins, selected, keepId = null) {
+// keep is a pin id, or a list of them: the open stop and its neighbours,
+// kept even when their category is filtered out, so the panel never
+// describes a marker that isn't on the map and Previous/Next always lead
+// to one that is.
+export function filterPinsByCategory(pins, selected, keep = null) {
   if (!selected || selected.size === 0) return pins;
-  return pins.filter((pin) => selected.has(pinCategory(pin)) || pin.id === keepId);
+  const keepIds = new Set([keep].flat().filter(Boolean));
+  return pins.filter((pin) => selected.has(pinCategory(pin)) || keepIds.has(pin.id));
 }

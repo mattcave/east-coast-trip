@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { writeFile, access } from "fs/promises";
 import { join } from "path";
 import { PATCH, DELETE } from "./route.js";
@@ -153,3 +153,40 @@ describe("PATCH stop order and date", () => {
     expect(bad.status).toBe(400);
   });
 });
+
+describe("PATCH /api/trips/[tripId]/pins/[id] region", () => {
+  beforeEach(() => vi.stubEnv("MAPBOX_TOKEN", "test-key"));
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  const reply = (name) => ({ ok: true, json: async () => ({ features: name ? [{ text: name }] : [] }) });
+
+  it("looks up the region again when the pin moves", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(reply("Quebec"));
+    const response = await PATCH(patchRequest("1", { lngLat: [-71.2, 46.8] }), makeParams("1"));
+    expect((await response.json()).region).toBe("Quebec");
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("doesn't look anything up when the location is unchanged, and keeps the region", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(reply("Quebec"));
+    await PATCH(patchRequest("1", { lngLat: [-71.2, 46.8] }), makeParams("1"));
+    vi.restoreAllMocks();
+    const spy = vi.spyOn(globalThis, "fetch").mockResolvedValue(reply("Wrong"));
+    // The editor sends the whole pin back, including a stale region
+    const response = await PATCH(patchRequest("1", { label: "Home", lngLat: [-71.2, 46.8], region: "Stale" }), makeParams("1"));
+    expect((await response.json()).region).toBe("Quebec");
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("drops the old region when the pin moves and the lookup fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(reply("Quebec"));
+    await PATCH(patchRequest("1", { lngLat: [-71.2, 46.8] }), makeParams("1"));
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
+    const response = await PATCH(patchRequest("1", { lngLat: [-60, 40] }), makeParams("1"));
+    expect("region" in (await response.json())).toBe(false);
+  });
+});
+

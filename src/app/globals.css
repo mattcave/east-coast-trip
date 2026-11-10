@@ -47,6 +47,24 @@
   }
 }
 
+/* A tap target of at least 44x44px on touch screens, for small buttons
+   whose visible size stays as it is: an invisible box centred on the
+   button, which the browser counts as part of it. The button has to be
+   positioned (relative or absolute) for the box to centre on it. */
+@utility touch-hit {
+  @media (pointer: coarse) {
+    &::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -96,6 +114,23 @@ body {
    the menu button's aria-expanded so no extra state has to be passed up. */
 .trip-map:has(button[aria-haspopup="menu"][aria-expanded="true"]) .maplibregl-ctrl-top-left {
   visibility: hidden;
+}
+
+/* The Reset view button is 29px, MapLibre's control size; on a touch
+   screen it gets the same invisible 44px tap box as touch-hit */
+@media (pointer: coarse) {
+  .maplibregl-ctrl .reset-view-button {
+    position: relative;
+  }
+  .maplibregl-ctrl .reset-view-button::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
 }
 
 /* When a trip shows category filter chips, they sit in a second row under

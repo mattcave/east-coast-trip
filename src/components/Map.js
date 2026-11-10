@@ -157,11 +157,13 @@ function pinAriaLabel(pin, number, hasPhotos) {
 // pins arrive in stop order; stopNumbers maps pin id -> stop number (kept
 // separate so a filtered list doesn't renumber). The selected pin is always
 // drawn on its own, highlighted, never inside a cluster, so stepping
-// through stops can't land on one hidden in a bubble.
+// through stops can't land on one hidden in a bubble. `pinnedPinIds` (the
+// open stop's previous and next stops) are also drawn on their own, so
+// hovering Previous/Next always has a marker to light up.
 export default function Map({
   mapRef, pins = [], stopNumbers = null, selectedPinId = null, homeView = null,
   placementMode = false, onLocationPick, onPinClick, onMapClick,
-  previewPinId = null, backgroundPoints = null,
+  previewPinId = null, backgroundPoints = null, pinnedPinIds = null,
 }) {
   const containerRef = useRef(null);
   const [initError, setInitError] = useState(null);
@@ -182,6 +184,9 @@ export default function Map({
   useEffect(() => { placementModeRef.current = placementMode; });
   const homeViewRef = useRef(homeView);
   useEffect(() => { homeViewRef.current = homeView; });
+  // A string so the marker effect only re-runs when the ids change, not
+  // whenever the parent hands over a new array
+  const pinnedKey = (pinnedPinIds ?? []).filter(Boolean).join(",");
 
   useEffect(() => {
     if (mapRef.current) return;
@@ -245,7 +250,7 @@ export default function Map({
 
     // Home button — returns the map to the current trip's view
     const homeBtn = document.createElement("button");
-    homeBtn.className = "maplibregl-ctrl-icon";
+    homeBtn.className = "maplibregl-ctrl-icon reset-view-button";
     homeBtn.title = "Reset view";
     homeBtn.setAttribute("aria-label", "Reset view");
     homeBtn.style.cssText = "display:flex; align-items:center; justify-content:center;";
@@ -310,6 +315,10 @@ export default function Map({
 
     const selectedPin = pins.find((p) => p.id === selectedPinId) ?? null;
     const pinsById = new globalThis.Map(pins.map((p) => [p.id, p]));
+    const pinned = (pinnedKey ? pinnedKey.split(",") : [])
+      .map((id) => pinsById.get(id))
+      .filter((pin) => pin && pin !== selectedPin);
+    const unclustered = new Set([selectedPin, ...pinned]);
     // Each cluster carries the lowest and highest stop numbers inside it:
     // the lowest sets its place in the keyboard tab order (see
     // placeInStopOrder), and both give its range label (see clusterLabel)
@@ -323,7 +332,7 @@ export default function Map({
       },
     }).load(
       pins
-        .filter((pin) => pin !== selectedPin)
+        .filter((pin) => !unclustered.has(pin))
         .map((pin) => ({
           type: "Feature",
           properties: { pinId: pin.id, stopNumber: stopNumbers?.[pin.id] ?? Number.MAX_SAFE_INTEGER },
@@ -416,9 +425,10 @@ export default function Map({
         if (pin) wanted.add(syncPin(pin, false));
       }
 
-      // The selected pin isn't in the index, so it's added separately.
-      // Always kept, even when off screen, so it doesn't flicker out while
-      // the map eases towards it.
+      // The selected pin and its neighbours aren't in the index, so they're
+      // added separately. Always kept, even when off screen, so they don't
+      // flicker out while the map eases towards them.
+      for (const pin of pinned) wanted.add(syncPin(pin, false));
       if (selectedPin) wanted.add(syncPin(selectedPin, true));
 
       const removedRoots = [];
@@ -452,9 +462,10 @@ export default function Map({
         entry.el.setAttribute("aria-label", pinAriaLabel(pin, number, hasPhotos));
         if (selected) entry.el.setAttribute("aria-current", "true");
         else entry.el.removeAttribute("aria-current");
-        // Lifts the selected marker above its neighbours. MapLibre doesn't
-        // set z-index on marker elements, so this is safe to own here.
-        entry.el.style.zIndex = selected ? "2" : "";
+        // Lifts the selected marker above every other marker and cluster
+        // (they're all siblings with no z-index of their own). MapLibre
+        // doesn't set z-index on marker elements, so this is safe to own.
+        entry.el.style.zIndex = selected ? "10" : "";
         entry.root.render(<MarkerPin icon={pin.icon} number={number} selected={selected} hasPhotos={hasPhotos} />);
         entry.signature = signature;
       }
@@ -473,7 +484,7 @@ export default function Map({
       map.off("moveend", renderMarkers);
       map.off("load", renderMarkers);
     };
-  }, [mapRef, pins, stopNumbers, selectedPinId]);
+  }, [mapRef, pins, stopNumbers, selectedPinId, pinnedKey]);
 
   // The stop the visitor is about to step to (hovering Previous/Next) shows
   // its marker in the hover state, so they can see where they're going.
@@ -500,7 +511,7 @@ export default function Map({
       }
     }
     for (const [key, entry] of markers) entry.el.toggleAttribute("data-preview", key === target);
-  }, [previewPinId, pins, selectedPinId]);
+  }, [previewPinId, pins, selectedPinId, pinnedKey]);
 
   // Small, quiet dots for points that aren't markers: every trip's stops
   // behind the trip chooser on the landing page, so the map isn't empty

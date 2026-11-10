@@ -127,6 +127,7 @@ export function overviewHomeView(trips, pinsByTrip) {
 // switcher, Stops button and category chips (two rows) and the help/admin
 // button along the top, the zoom/home controls down the left side
 const FIT_OPTIONS = { padding: { top: 104, bottom: 48, left: 72, right: 56 }, maxZoom: 12 };
+const NO_INSET = { top: 0, right: 0, bottom: 0, left: 0 };
 
 // Visitors who ask the OS for less motion get instant jumps instead of
 // flights and eases. Read at call time, so changing the setting applies
@@ -136,29 +137,55 @@ export function prefersReducedMotion() {
     && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
 }
 
-// Every camera move in the app goes through flyToView or easeToPoint, so
-// reduced motion is handled in one place.
+// The padding for a fit into the part of the map a panel leaves uncovered.
+// Sides the panel covers get its inset plus `gap` (room for a marker along
+// that edge); the other sides keep FIT_OPTIONS' room for the floating
+// controls. A bottom sheet's inset also has a top (the top bar).
+function insetPadding(inset, gap) {
+  const i = { ...NO_INSET, ...inset };
+  const base = FIT_OPTIONS.padding;
+  return {
+    top: i.top ? i.top + gap.top : base.top,
+    bottom: i.bottom ? i.bottom + gap.bottom : base.bottom,
+    left: base.left + i.left,
+    right: base.right + i.right,
+  };
+}
+
+// Whether a padding leaves at least `room` px of map to fit into. MapLibre
+// refuses a fit whose padding is bigger than the map, and leaves the view
+// where it was.
+function leavesRoom(map, padding, room) {
+  const canvas = map.getCanvas?.();
+  const width = canvas?.clientWidth ?? Infinity;
+  const height = canvas?.clientHeight ?? Infinity;
+  return padding.left + padding.right + room <= width && padding.top + padding.bottom + room <= height;
+}
+
+// MapLibre keeps padding from an earlier easeTo and adds it to a later fit,
+// which would squeeze the fit into a corner. Clearing it with setMapInset
+// doesn't visibly move the map.
+function clearMapInset(map) {
+  const current = map.getPadding?.();
+  if (current && Object.values(current).some((v) => v > 0)) setMapInset(map);
+}
+
+// Every camera move in the app goes through flyToView, fitToStops or
+// easeToPoint, so reduced motion is handled in one place.
 //
 // `inset` fits the view into part of the map: the strip above a mobile
-// sheet that covers the bottom of it ({ top, bottom } in px, measured by
-// the caller). Without it the view fits the whole map.
+// sheet that covers the bottom of it, or left of a docked panel
+// ({ top, right, bottom, left } in px, measured by the caller). Without it
+// the view fits the whole map.
 export function flyToView(map, view, { inset } = {}) {
   if (!map || !view) return;
   const animate = !prefersReducedMotion();
-  // MapLibre keeps padding from an earlier easeTo and adds it to this fit,
-  // which would squeeze the trip into a corner. Clear it first; that
-  // doesn't visibly move the map (see setMapInset).
-  const current = map.getPadding?.();
-  if (current && Object.values(current).some((v) => v > 0)) setMapInset(map);
+  clearMapInset(map);
   // An inset that leaves too little map to fit anything into (a tall sheet
-  // on a short phone) is dropped: MapLibre refuses a fit whose padding is
-  // bigger than the map, and leaves the view where it was.
-  const height = map.getCanvas?.().clientHeight ?? Infinity;
-  if (inset && (inset.top ?? 0) + (inset.bottom ?? 0) + 40 + 80 > height) inset = undefined;
+  // on a short phone) is dropped, and the view fits the whole map instead
+  if (inset && !leavesRoom(map, insetPadding(inset, { top: 16, bottom: 24 }), 80)) inset = undefined;
   if (view.bounds) {
-    const padding = inset
-      ? { ...FIT_OPTIONS.padding, top: (inset.top ?? 0) + 16, bottom: (inset.bottom ?? 0) + 24 }
-      : FIT_OPTIONS.padding;
+    const padding = inset ? insetPadding(inset, { top: 16, bottom: 24 }) : FIT_OPTIONS.padding;
     map.fitBounds(view.bounds, { ...FIT_OPTIONS, padding, animate });
     return;
   }
@@ -169,10 +196,37 @@ export function flyToView(map, view, { inset } = {}) {
   else map.jumpTo(options);
 }
 
+// Zoom cap when fitting an open stop and its neighbours: two stops at the
+// same campground would otherwise zoom in to street level
+const STOP_FIT_MAX_ZOOM = 12;
+
+// Fits the open stop and its neighbours (`points`, the open stop first) into
+// the part of the map the panel or sheet leaves uncovered. The gap at the
+// top and bottom is a little more than half the enlarged selected marker,
+// so a stop at the edge isn't clipped by the top bar or the sheet. When
+// the panel leaves too little map for a fit (the sheet dragged up on a
+// short phone), the open stop is centred in what's left instead.
+export function fitToStops(map, points, { inset } = {}) {
+  const valid = (points ?? []).filter((p) => Array.isArray(p) && p.length === 2);
+  if (!map || valid.length === 0) return;
+  const padding = insetPadding(inset, { top: 24, bottom: 32 });
+  if (!leavesRoom(map, padding, 40)) {
+    easeToPoint(map, valid[0], { inset: { ...NO_INSET, ...inset } });
+    return;
+  }
+  clearMapInset(map);
+  const lngs = valid.map((p) => p[0]);
+  const lats = valid.map((p) => p[1]);
+  const bounds = [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]];
+  // fitBounds flies, and a flight's length grows with the distance, so a
+  // long hop between stops could take a few seconds; capped so stepping
+  // through the trip stays brisk
+  map.fitBounds(bounds, { padding, maxZoom: STOP_FIT_MAX_ZOOM, maxDuration: 1200, animate: !prefersReducedMotion() });
+}
+
 // Centres a point in the part of the map that isn't covered by a panel.
 // `inset` is the map padding ({ top, right, bottom, left }) for the panel;
 // omit it to keep the current padding. `zoom` is optional.
-const NO_INSET = { top: 0, right: 0, bottom: 0, left: 0 };
 
 export function easeToPoint(map, lngLat, { inset, zoom } = {}) {
   if (!map || !lngLat) return;
@@ -241,6 +295,15 @@ export function formatTripDayRange(trip) {
   if (sm !== em) return `${sd} ${sm} – ${ed} ${em} ${ey}`;
   if (sd === ed) return `${sd} ${sm} ${sy}`;
   return `${sd}–${ed} ${sm} ${sy}`;
+}
+
+// How many days a trip lasted, counting both the first and last day
+// (14 to 31 August is 18 days). Null unless both dates are set and in order.
+export function tripDayCount(trip) {
+  const start = parseDay(trip?.startDate);
+  const end = parseDay(trip?.endDate);
+  if (!start || !end || end < start) return null;
+  return Math.round((end - start) / 86400000) + 1;
 }
 
 // The tag on a trip that has no stops yet, in place of its facts line:

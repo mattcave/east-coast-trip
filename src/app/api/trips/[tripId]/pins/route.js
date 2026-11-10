@@ -1,5 +1,6 @@
 import { getTrip, readPins, mutatePins } from "@/lib/store";
 import { nextOrder, sanitizePinDate } from "@/lib/pins";
+import { lookupRegion } from "@/lib/regions";
 
 export async function GET(_, { params }) {
   const { tripId } = await params;
@@ -18,6 +19,10 @@ export async function POST(request, { params }) {
   const { date = null, error } = sanitizePinDate(body);
   if (error) return Response.json({ error }, { status: 400 });
 
+  // Looked up before the write so the queue isn't held up by Mapbox. A
+  // failed lookup just leaves the pin without a region.
+  const region = await lookupRegion(lngLat);
+
   const pinFields = {
     label,
     description: description ?? "",
@@ -26,6 +31,7 @@ export async function POST(request, { params }) {
     images: images ?? [],
     wikipedia: wikipedia ?? null,
     date,
+    ...(region ? { region } : {}),
   };
 
   // The id and order are assigned inside the queue: order is "one past the

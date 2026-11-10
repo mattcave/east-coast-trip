@@ -26,7 +26,7 @@ export default function TripSummary({ trip, pins, sheetRef, onClose, onStart, on
   const intro = trip.intro || trip.description;
 
   return (
-    <Sheet onClose={onClose} labelledBy="trip-summary-title" sheetRef={sheetRef} handleOnPhoto={Boolean(cover)}>
+    <Sheet onClose={onClose} labelledBy="trip-summary-title" sheetRef={sheetRef} startsWithPhoto={Boolean(cover)}>
       <div className="relative">
         {/* 16:9, but on a short phone no taller than a quarter of the
             screen, so the trip name, facts line and the start of the intro

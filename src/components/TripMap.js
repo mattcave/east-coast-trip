@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo, useCallback, useSyncExternalStore } from "react";
 import { useParams } from "next/navigation";
-import { Pencil, HelpCircle, List } from "lucide-react";
+import { Pencil, HelpCircle, List, Play } from "lucide-react";
 import Map from "./Map";
 import GeoSearch from "./GeoSearch";
 import EditorModal from "./EditorModal";
@@ -12,7 +12,8 @@ import TripChooser from "./TripChooser";
 import TripSwitcher from "./TripSwitcher";
 import StopsList from "./StopsList";
 import CategoryChips from "./CategoryChips";
-import { tripHomeView, overviewHomeView, flyToView, easeToPoint, setMapInset } from "@/lib/trips";
+import FinishCard from "./FinishCard";
+import { tripHomeView, overviewHomeView, flyToView, fitToStops, easeToPoint, setMapInset } from "@/lib/trips";
 import { sortPins, stopIdFromSearch, searchWithStop } from "@/lib/pins";
 import { tripCategories, filterPinsByCategory } from "@/lib/categories";
 import { DOCKED_PANEL_QUERY } from "@/lib/layout";
@@ -170,6 +171,14 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   const selectedPin = selectedIndex === -1 || showOverview ? null : stops[selectedIndex];
   const prevStop = selectedPin ? stops[selectedIndex - 1] ?? null : null;
   const nextStop = selectedPin ? stops[selectedIndex + 1] ?? null : null;
+  // The finish card, shown after the last stop ("The end of the trip"). It
+  // takes the stop panel's place, so no stop is selected while it's open.
+  const [finishOpen, setFinishOpen] = useState(false);
+  const showFinish = finishOpen && !showOverview && stops.length > 0;
+  // The last stop opened during this visit to the trip, for the map's
+  // "Back to stop N" button. Component state only, not persisted.
+  const [lastOpenedStopId, setLastOpenedStopId] = useState(null);
+  if (selectedPin && selectedPin.id !== lastOpenedStopId) setLastOpenedStopId(selectedPin.id);
   // Owned here (not inside Map) so GeoSearch and the editor can call flyTo
   const mapRef = useRef(null);
   // The open panel (a stop or the stops list), measured to keep the stop
@@ -191,9 +200,17 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   // Selected category chips. Kept while the visitor stays on this trip,
   // dropped on a trip switch; not persisted.
   const [categoryFilter, setCategoryFilter] = useState(() => new Set());
+  // The open stop's neighbours stay on the map under a filter too, since
+  // Previous/Next steps through every stop. On the finish card, the last
+  // stop is the "previous" one.
+  const lastStop = stops[stops.length - 1] ?? null;
+  const neighbourIds = useMemo(
+    () => (showFinish ? [lastStop?.id] : [prevStop?.id, nextStop?.id]).filter(Boolean),
+    [showFinish, lastStop?.id, prevStop?.id, nextStop?.id]
+  );
   const mapPins = useMemo(
-    () => filterPinsByCategory(pins, categoryFilter, selectedPinId),
-    [pins, categoryFilter, selectedPinId]
+    () => filterPinsByCategory(pins, categoryFilter, [selectedPinId, ...neighbourIds]),
+    [pins, categoryFilter, selectedPinId, neighbourIds]
   );
 
   // Stored callback from the form's "Pick on map" button.
@@ -208,6 +225,8 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   if (trip.id !== shownTripId) {
     setShownTripId(trip.id);
     setSelectedPinId(null);
+    setFinishOpen(false);
+    setLastOpenedStopId(null);
     setStopsListOpen(false);
     setOpenedFromList(false);
     setCategoryFilter(new Set());
@@ -219,10 +238,15 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   // Set while a stop from a `?stop=` link is being opened, so the URL sync
   // further down doesn't strip the param in the render before it's selected
   const stopLinkPendingRef = useRef(false);
+  // The trip whose arrival has been handled. Until then it isn't known
+  // whether the summary will open, so the map's Start button waits, rather
+  // than flashing up for a moment under the summary.
+  const [arrivedTripId, setArrivedTripId] = useState(null);
   useEffect(() => {
     if (isUnknownTrip) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncs with the route and localStorage, neither readable during SSR
+    setArrivedTripId(trip.id);
     if (isRoot) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncs with the route and localStorage, neither readable during SSR
       setOverlay("chooser");
       return;
     }
@@ -244,19 +268,34 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRoot, trip.id, isUnknownTrip]);
 
-  // When a stop opens (or the visitor steps to another), ease the map so it
-  // sits in the part of the map the panel doesn't cover: left of the docked
-  // panel on desktop, above the bottom sheet on mobile. When the panel
-  // closes, its padding is cleared without moving the map (see
-  // setMapInset). Declared before the trip fly-to effect below so that, on a
-  // trip switch, the padding is cleared before the flight starts rather
-  // than cancelling it.
-  // The inset and stop from the last ease, or null when no panel inset is set
+  // When a stop opens (or the visitor steps to another), fit the map to it
+  // and its neighbours (the stops Previous and Next lead to), in the part of
+  // the map the panel doesn't cover: left of the docked panel, above the
+  // bottom sheet. Without the zoom, the open stop sat at the trip-wide view
+  // piled up on its neighbours, and most of them were inside clusters.
+  // When the panel closes, its padding is cleared without moving the map
+  // (see setMapInset). Declared before the trip fly-to effect below so
+  // that, on a trip switch, the padding is cleared before the flight
+  // starts rather than cancelling it.
+  // The finish card fits the whole trip beside it instead.
+  // The inset and points from the last fit, or null when no panel is open
   const lastInsetRef = useRef(null);
   const selectedLngLat = selectedPin?.lngLat;
+  const fitPoints = selectedPin
+    ? [selectedPin, prevStop, nextStop].filter(Boolean).map((p) => p.lngLat)
+    : null;
+  // Changes when the open stop or where it and its neighbours are changes,
+  // so a refresh that hands back equal arrays doesn't refit
+  const fitKey = fitPoints ? JSON.stringify(fitPoints) : null;
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+    if (showFinish) {
+      const inset = measurePanelInset(map, panelRef.current, topBarRef.current);
+      lastInsetRef.current = { inset, points: null };
+      flyToView(map, homeView, { inset });
+      return;
+    }
     if (!selectedPinId || !selectedLngLat) {
       const last = lastInsetRef.current;
       lastInsetRef.current = null;
@@ -266,22 +305,22 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
       // closes shows mostly whatever lies south of the stop. Bring the stop
       // back to the middle instead. The desktop panel only shifted things
       // sideways, so there the map is left exactly as it looks.
-      if (last.inset.bottom > 0) easeToPoint(map, last.lngLat, { inset: { top: 0, right: 0, bottom: 0, left: 0 } });
+      if (last.points && last.inset.bottom > 0) easeToPoint(map, last.points[0], { inset: { top: 0, right: 0, bottom: 0, left: 0 } });
       else setMapInset(map);
       return;
     }
     const inset = measurePanelInset(map, panelRef.current, topBarRef.current);
-    lastInsetRef.current = { inset, lngLat: selectedLngLat };
-    easeToPoint(map, selectedLngLat, { inset });
-  // Keyed on the coordinates' values so a refresh that hands back an equal
-  // array doesn't re-ease
+    const points = JSON.parse(fitKey);
+    lastInsetRef.current = { inset, points };
+    fitToStops(map, points, { inset });
+  // homeView is read, not watched: the finish card fits once as it opens
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedPinId, selectedLngLat?.[0], selectedLngLat?.[1]]);
+  }, [selectedPinId, fitKey, showFinish]);
 
   // The sheet changes size after it opens: dragged between 55% and 85%, or
   // as the Wikipedia summary loads in. The top bar changes too, when the
-  // chips row hides. Re-centre the stop once the size settles (debounced,
-  // since a resize fires on every frame of the sheet's snap animation).
+  // chips row hides. Refit once the size settles (debounced, since a resize
+  // fires on every frame of the sheet's snap animation).
   useEffect(() => {
     const map = mapRef.current;
     const panel = panelRef.current;
@@ -291,11 +330,11 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
       clearTimeout(timer);
       timer = setTimeout(() => {
         const last = lastInsetRef.current;
-        if (!last) return;
+        if (!last?.points) return;
         const inset = measurePanelInset(map, panelRef.current, topBarRef.current);
         if (!insetChanged(inset, last.inset)) return;
-        lastInsetRef.current = { inset, lngLat: last.lngLat };
-        easeToPoint(map, last.lngLat, { inset });
+        lastInsetRef.current = { inset, points: last.points };
+        fitToStops(map, last.points, { inset });
       }, 150);
     });
     observer.observe(panel);
@@ -416,6 +455,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
     setPlacementMode(true);
     setModalOpen(false);
     setSelectedPinId(null);
+    setFinishOpen(false);
     setStopsListOpen(false);
   };
 
@@ -448,19 +488,23 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   };
 
   const closeStop = useCallback(() => setSelectedPinId(null), []);
-  // Opening a stop from a marker or the cluster list
+  // Opening a stop from a marker, the cluster list, the map's Start
+  // button or the finish card's photos
   const openStop = useCallback((pin) => {
     setStopsListOpen(false);
+    setFinishOpen(false);
     setOpenedFromList(false);
     setSelectedPinId(pin.id);
   }, []);
   const openStopFromList = useCallback((pin) => {
     setStopsListOpen(false);
+    setFinishOpen(false);
     setOpenedFromList(true);
     setSelectedPinId(pin.id);
   }, []);
   const openStopsList = useCallback(() => {
     setSelectedPinId(null);
+    setFinishOpen(false);
     setStopsListOpen(true);
   }, []);
   const closeStopsList = useCallback(() => setStopsListOpen(false), []);
@@ -468,7 +512,24 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   const closePanels = useCallback(() => {
     setSelectedPinId(null);
     setStopsListOpen(false);
+    setFinishOpen(false);
   }, []);
+  // "The end of the trip", from the last stop
+  const openFinish = useCallback(() => {
+    setPreviewPinId(null);
+    setSelectedPinId(null);
+    setStopsListOpen(false);
+    setFinishOpen(true);
+  }, []);
+  const closeFinish = useCallback(() => setFinishOpen(false), []);
+  // Previous on the finish card goes back to the last stop
+  const finishToLastStop = useCallback(() => {
+    if (!lastStop) return;
+    setPreviewPinId(null);
+    setFinishOpen(false);
+    setOpenedFromList(false);
+    setSelectedPinId(lastStop.id);
+  }, [lastStop]);
   const toggleCategory = useCallback((key) => {
     setCategoryFilter((prev) => {
       const next = new Set(prev);
@@ -497,7 +558,21 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
   // above the sheet is small enough already.
   // Same while the summary or chooser sheet covers the map on a phone.
   const showChips = categories.length > 1 && !placementMode
-    && !(isSheetLayout && selectedPin) && !(isPhone && overlay);
+    && !(isSheetLayout && (selectedPin || showFinish)) && !(isPhone && overlay);
+
+  // While the stop panel, stops list or finish card is docked on the
+  // right, the top bar ends 16px short of it, so the chips row doesn't run
+  // underneath (it then scrolls, with the fade at its new right edge).
+  // The offsets are the panel's widths (see SidePanel) plus 16px.
+  const dockedPanelOpen = Boolean(selectedPin || (stopsListOpen && !showOverview) || showFinish);
+  const topBarRight = dockedPanelOpen ? "dock:right-[416px] dock-wide:right-[536px]" : "";
+
+  // The map's "Start at stop 1" button (or "Back to stop N" once a stop has
+  // been opened), shown only when nothing else is open on the map
+  const resumeStop = stops.find((p) => p.id === lastOpenedStopId) ?? null;
+  const startStop = resumeStop ?? stops[0] ?? null;
+  const showStartButton = Boolean(startStop) && !showOverview && arrivedTripId === trip.id
+    && !selectedPin && !stopsListOpen && !showFinish && !overlay && !modalOpen && !placementMode;
 
   if (isUnknownTrip) return null;
 
@@ -510,7 +585,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
           below. The wrapper ignores clicks so the map stays usable in the
           gaps; the right margin leaves room for the help/Admin button. */}
       {!placementMode && (
-        <div ref={topBarRef} className="pointer-events-none absolute top-4 left-4 right-4 z-10 flex flex-col items-start gap-2">
+        <div ref={topBarRef} className={`pointer-events-none absolute top-4 left-4 right-4 z-10 flex flex-col items-start gap-2 ${topBarRight}`}>
           <div className="pointer-events-auto flex max-w-[calc(100%-6.5rem)] items-start gap-2">
             <TripSwitcher
               trips={trips}
@@ -522,7 +597,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
                 type="button"
                 onClick={stopsListOpen ? closeStopsList : openStopsList}
                 aria-expanded={stopsListOpen}
-                className="press flex flex-shrink-0 items-center gap-1.5 bg-paper hover:bg-line text-ink text-sm font-medium px-3 py-2 rounded-lg shadow-md border border-line"
+                className="press touch-hit relative flex flex-shrink-0 items-center gap-1.5 bg-paper hover:bg-line text-ink text-sm font-medium px-3 py-2 rounded-lg shadow-md border border-line"
               >
                 <List size={16} className="text-muted" aria-hidden="true" />
                 Stops
@@ -571,7 +646,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
           onClick={() => setOverlay(isRoot ? "chooser" : "summary")}
           aria-label="About this trip"
           title="About this trip"
-          className="press absolute top-4 right-4 z-10 flex items-center justify-center w-9 h-9 bg-paper hover:bg-line text-muted hover:text-ink rounded-full shadow-md border border-line"
+          className="press touch-hit absolute top-4 right-4 z-10 flex items-center justify-center w-9 h-9 bg-paper hover:bg-line text-muted hover:text-ink rounded-full shadow-md border border-line"
         >
           <HelpCircle size={18} />
         </button>
@@ -580,7 +655,8 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
       <Map
         mapRef={mapRef}
         pins={mapPins}
-        previewPinId={selectedPin ? previewPinId : null}
+        previewPinId={selectedPin || showFinish ? previewPinId : null}
+        pinnedPinIds={neighbourIds}
         backgroundPoints={backgroundPoints}
         stopNumbers={stopNumbers}
         selectedPinId={selectedPin?.id ?? null}
@@ -592,6 +668,22 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
         // (desktop has no backdrop to click)
         onMapClick={closePanels}
       />
+
+      {/* Start (or pick up again) from the map itself. Visitors who arrive
+          from the trip chooser skip the trip intro, and its "Start at stop
+          1", so without this they'd land on a map of clusters with no
+          obvious place to begin. Bottom centre, above the safe area and
+          clear of MapLibre's scale and attribution in the corners. */}
+      {showStartButton && (
+        <button
+          type="button"
+          onClick={() => openStop(startStop)}
+          className="press absolute left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-accent py-2.5 pl-4 pr-5 text-sm font-medium text-white shadow-lg hover:bg-accent-hover bottom-[calc(env(safe-area-inset-bottom)+2.5rem)] sm:bottom-[calc(env(safe-area-inset-bottom)+2rem)]"
+        >
+          <Play size={16} fill="currentColor" aria-hidden="true" />
+          {resumeStop ? `Back to stop ${stopNumbers[resumeStop.id]}` : "Start at stop 1"}
+        </button>
+      )}
 
       {overlay === "summary" && (
         <TripSummary
@@ -644,6 +736,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
 
       {stopsListOpen && !showOverview && (
         <StopsList
+          trip={trip}
           stops={stops}
           stopNumbers={stopNumbers}
           onPick={openStopFromList}
@@ -664,6 +757,7 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
           next={nextStop}
           onPrev={goToPrev}
           onNext={goToNext}
+          onFinish={openFinish}
           onClose={closeStop}
           getZoom={getZoom}
           panelRef={panelRef}
@@ -674,6 +768,22 @@ export default function TripMap({ initialTrips, initialDefaultTripId, initialPin
             setEditTargetId(id);
             setModalOpen(true);
           } : null}
+        />
+      )}
+
+      {showFinish && (
+        <FinishCard
+          trip={trip}
+          stops={stops}
+          stopNumbers={stopNumbers}
+          lastStop={lastStop}
+          onPrev={finishToLastStop}
+          onOpenStop={openStop}
+          onShowAllTrips={trips.length > 1 ? () => { closeFinish(); setOverlay("chooser"); } : null}
+          onClose={closeFinish}
+          panelRef={panelRef}
+          onPreviewStop={setPreviewPinId}
+          keyboardEnabled={!modalOpen && !placementMode}
         />
       )}
     </div>
