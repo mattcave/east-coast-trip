@@ -1,6 +1,6 @@
 import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 import "./globals.css";
-import { SITE_NAME } from "@/lib/trips";
+import { SITE_NAME, SITE_DESCRIPTION, SITE_URL, BASE_OPEN_GRAPH } from "@/lib/trips";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,9 +22,15 @@ const newsreader = Newsreader({
 
 // Trip pages set their own title, which the template turns into
 // "East Coast Trip · Cave Family Road Trips"
+// The preview image comes from opengraph-image.js beside this file (and
+// per trip from (map)/trips/[id]/opengraph-image.js).
 export const metadata = {
+  metadataBase: new URL(SITE_URL),
   title: { template: `%s · ${SITE_NAME}`, default: SITE_NAME },
-  description: "Our family road trips, pinned on a map with photos and stories from every stop",
+  description: SITE_DESCRIPTION,
+  openGraph: { ...BASE_OPEN_GRAPH, title: SITE_NAME, description: SITE_DESCRIPTION, url: "/" },
+  // X and others read the Open Graph image; this asks for the large layout
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({ children }) {

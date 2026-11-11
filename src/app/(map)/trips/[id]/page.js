@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getTrip } from "@/lib/store";
+import { SITE_DESCRIPTION, BASE_OPEN_GRAPH } from "@/lib/trips";
 
 // The map itself is rendered by the shared (map) layout, which reads the trip
 // id from the URL on the client. This page only supplies per-trip metadata
@@ -9,7 +10,13 @@ export async function generateMetadata({ params }) {
   const { id } = await params;
   const trip = await getTrip(id);
   if (!trip) return {};
-  return { title: trip.name, description: trip.description || undefined };
+  const description = trip.description || SITE_DESCRIPTION;
+  return {
+    title: trip.name,
+    description,
+    // The image comes from opengraph-image.js beside this file
+    openGraph: { ...BASE_OPEN_GRAPH, title: trip.name, description, url: `/trips/${id}` },
+  };
 }
 
 export default async function TripPage({ params }) {

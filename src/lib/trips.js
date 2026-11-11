@@ -2,6 +2,17 @@
 // fs access). Persistence lives in src/lib/store.js.
 
 export const SITE_NAME = "Cave Family Road Trips";
+export const SITE_DESCRIPTION = "Our family road trips, pinned on a map with photos and stories from every stop";
+
+// The public address, used to turn link-preview image paths into the full
+// URLs that messaging apps and social sites need. SITE_URL overrides it for
+// another deployment.
+export const SITE_URL = process.env.SITE_URL || "https://roadtrip.home.ma.ttcave.ca";
+
+// Open Graph fields every page shares. A page that sets its own openGraph
+// replaces the parent's object rather than merging into it, so trip pages
+// spread this in to keep the site name and type.
+export const BASE_OPEN_GRAPH = { siteName: SITE_NAME, type: "website", locale: "en_CA" };
 
 // Trip ids double as URL slugs (/trips/<id>) and as pin file names
 // (data/pins/<id>.json), so they're restricted to lowercase words joined by
